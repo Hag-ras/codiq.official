@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
@@ -86,13 +86,16 @@ model User {
   resetTokenExpires DateTime?
   createdAt         DateTime  @default(now())
 
-  enrollments  Enrollment[]
-  paymentsMade Payment[]         @relation("Payer")
-  paymentsFor  Payment[]         @relation("Student")
-  submissions  Submission[]
-  quizAttempts QuizAttempt[]
-  progress     SessionProgress[]
-  taught       Session[]         @relation("Instructor")
+  enrollments            Enrollment[]
+  paymentsMade           Payment[]           @relation("Payer")
+  paymentsFor            Payment[]           @relation("Student")
+  submissions            Submission[]
+  quizAttempts           QuizAttempt[]
+  progress               SessionProgress[]
+  taught                 Session[]           @relation("Instructor")
+  supportThreads         SupportThread[]
+  parentRequestsSent     ParentLinkRequest[] @relation("LinkParent")
+  parentRequestsReceived ParentLinkRequest[] @relation("LinkStudent")
 }
 
 /// Prices are stored in piasters (1 EGP = 100).
@@ -127,6 +130,8 @@ model Session {
   instructor   User?       @relation("Instructor", fields: [instructorId], references: [id])
   /// Storage key of the recording (uploaded, or produced by LiveKit egress)
   videoKey     String?
+  /// YouTube video id (unlisted video embedded in the player). Used instead of an uploaded file.
+  youtubeId    String?
   createdAt    DateTime    @default(now())
 
   materials  Material[]
@@ -223,28 +228,28 @@ model Enrollment {
 }
 
 model Payment {
-  id                String        @id @default(cuid())
-  payerId           String
-  payer             User          @relation("Payer", fields: [payerId], references: [id])
-  studentId         String
-  student           User          @relation("Student", fields: [studentId], references: [id])
-  packageId         String
-  package           Package       @relation(fields: [packageId], references: [id])
-  amount            Int
-  currency          String        @default("EGP")
-  method            PaymentMethod
-  billing           BillingType
-  status            PaymentStatus @default(PENDING)
-  provider          String
-  providerRef       String?
-  receiptKey        String?
-  raw               Json?
+  id             String        @id @default(cuid())
+  payerId        String
+  payer          User          @relation("Payer", fields: [payerId], references: [id])
+  studentId      String
+  student        User          @relation("Student", fields: [studentId], references: [id])
+  packageId      String
+  package        Package       @relation(fields: [packageId], references: [id])
+  amount         Int
+  currency       String        @default("EGP")
+  method         PaymentMethod
+  billing        BillingType
+  status         PaymentStatus @default(PENDING)
+  provider       String
+  providerRef    String?
+  receiptKey     String?
+  raw            Json?
   /// Piasters taken off by a coupon (amount is already the discounted price)
-  discountAmount    Int           @default(0)
-  couponId          String?
-  coupon            Coupon?       @relation(fields: [couponId], references: [id])
-  createdAt         DateTime      @default(now())
-  paidAt            DateTime?
+  discountAmount Int           @default(0)
+  couponId       String?
+  coupon         Coupon?       @relation(fields: [couponId], references: [id])
+  createdAt      DateTime      @default(now())
+  paidAt         DateTime?
 
   @@index([status])
 }
@@ -280,4 +285,63 @@ model Coupon {
   active         Boolean    @default(true)
   createdAt      DateTime   @default(now())
   payments       Payment[]
+}
+
+enum SupportStatus {
+  OPEN
+  RESOLVED
+}
+
+/// One live-chat conversation between a user and the Codiq team. A user has at most one OPEN thread.
+model SupportThread {
+  id             String               @id @default(cuid())
+  /// Null for a visitor who is not logged in (a guest): they are identified by guestKey instead
+  userId         String?
+  user           User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestName      String?
+  guestContact   String?
+  /// Secret kept in the visitor's browser; whoever holds it can read and continue this chat
+  guestKey       String?              @unique
+  status         SupportStatus        @default(OPEN)
+  createdAt      DateTime             @default(now())
+  lastMessageAt  DateTime             @default(now())
+  /// Messages from the user that staff have not read yet
+  unreadForStaff Int                  @default(0)
+  /// Messages from staff that the user has not read yet
+  unreadForUser  Int                  @default(0)
+  messages       SupportChatMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([userId, status])
+}
+
+model SupportChatMessage {
+  id        String        @id @default(cuid())
+  threadId  String
+  thread    SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId  String
+  fromStaff Boolean
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+enum LinkStatus {
+  PENDING
+  DECLINED
+}
+
+/// A parent asks to be linked to an existing student account. The student must accept before the parent sees anything.
+model ParentLinkRequest {
+  id        String     @id @default(cuid())
+  parentId  String
+  parent    User       @relation("LinkParent", fields: [parentId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User       @relation("LinkStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  status    LinkStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+
+  @@unique([parentId, studentId])
+  @@index([studentId, status])
 }

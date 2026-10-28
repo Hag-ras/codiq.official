@@ -11,6 +11,7 @@ async function main() {
 
   await user('sara@codiq.app', 'Sara Mostafa', Role.ADMIN);
   const karim = await user('karim@codiq.app', 'Karim Fathy', Role.INSTRUCTOR);
+  await user('lina@codiq.app', 'Lina Samir', Role.ASSISTANT);
   const nour = await user('nour@codiq.app', 'Nour Hassan', Role.PARENT, { phone: '01012345678' });
   const malak = await user('malak@codiq.app', 'Malak Hassan', Role.STUDENT, { track: Track.KIDS, parentId: nour.id });
   const ali = await user('ali@codiq.app', 'Ali Hassan', Role.STUDENT, { track: Track.SCHOOL, parentId: nour.id });

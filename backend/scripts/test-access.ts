@@ -11,7 +11,7 @@ const PW = 'Password123!';
 const prisma = new PrismaClient();
 
 const ADMIN_ONLY: [method: string, path: string][] = [
-  ['GET', '/admin/stats'], ['GET', '/admin/analytics/revenue'], ['GET', '/admin/analytics/students'], ['GET', '/admin/analytics/courses'], ['GET', '/admin/analytics/student-payments'], ['GET', '/admin/analytics/student-payments/x'], ['GET', '/admin/coupons'], ['POST', '/admin/coupons'], ['POST', '/admin/coupons/generate'], ['PATCH', '/admin/coupons/x'], ['DELETE', '/admin/coupons/x'], ['GET', '/admin/assignments'], ['GET', '/admin/assignments/x'], ['PATCH', '/users/x'], ['DELETE', '/users/x'], ['GET', '/users'], ['POST', '/users'], ['PATCH', '/users/x/role'],
+  ['GET', '/admin/stats'], ['GET', '/admin/analytics/revenue'], ['GET', '/admin/analytics/students'], ['GET', '/admin/analytics/courses'], ['GET', '/admin/analytics/student-payments'], ['GET', '/admin/analytics/student-payments/x'], ['GET', '/admin/courses/x'], ['GET', '/admin/coupons'], ['POST', '/admin/coupons'], ['POST', '/admin/coupons/generate'], ['PATCH', '/admin/coupons/x'], ['DELETE', '/admin/coupons/x'], ['GET', '/admin/assignments'], ['GET', '/admin/assignments/x'], ['PATCH', '/users/x'], ['DELETE', '/users/x'], ['GET', '/users'], ['POST', '/users'], ['PATCH', '/users/x/role'],
   ['GET', '/payments'], ['GET', '/payments/x/receipt'], ['PATCH', '/payments/x/approve'], ['PATCH', '/payments/x/reject'],
   ['POST', '/packages'], ['PATCH', '/packages/x'], ['DELETE', '/packages/x'],
   ['GET', '/sessions'], ['POST', '/sessions'], ['PATCH', '/sessions/x'], ['DELETE', '/sessions/x'],

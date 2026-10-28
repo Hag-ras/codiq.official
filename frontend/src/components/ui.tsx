@@ -6,7 +6,7 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
 export function Logo({ size = 22, dark = false }: { size?: number; dark?: boolean }) {
   return (
     <span className="inline-flex items-center gap-[3px] font-mono font-bold leading-none tracking-[-0.04em]" style={{ fontSize: size }}>
-      <span className={dark ? 'text-paper' : 'text-ink'}>codiq</span>
+      <span className={dark ? 'text-day' : 'text-ink'}>codiq</span>
       <span
         aria-hidden
         className="animate-blink rounded-[1px]"
@@ -18,7 +18,7 @@ export function Logo({ size = 22, dark = false }: { size?: number; dark?: boolea
 
 type Variant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
 const variants: Record<Variant, string> = {
-  primary: 'bg-ink text-paper hover:bg-black',
+  primary: 'btn-shine bg-ink text-paper hover:opacity-90',
   accent: 'bg-(--accent) text-white hover:brightness-110',
   secondary: 'bg-white text-ink border border-line hover:border-ink',
   ghost: 'text-ink hover:bg-black/5',

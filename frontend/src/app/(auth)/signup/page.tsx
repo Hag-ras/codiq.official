@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { Button, Field, Input, Select, cx } from '@/components/ui';
 import { GoogleButton, OrDivider } from '@/components/google-button';
 import { TRACK_AUDIENCE, TRACK_LABEL } from '@/lib/types';
+import { useT } from '@/components/i18n-provider';
 
 const schema = z
   .object({
@@ -23,6 +24,7 @@ const schema = z
 type Values = z.infer<typeof schema>;
 
 function SignupForm() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') ?? '/dashboard';
@@ -48,40 +50,40 @@ function SignupForm() {
 
   return (
     <>
-      <h1 className="font-mono text-2xl font-bold tracking-[-0.03em]">Create an account</h1>
+      <h1 className="font-mono text-2xl font-bold tracking-[-0.03em]">{t('Create an account')}</h1>
       <p className="mt-1 mb-6 text-[15px] text-muted">
-        Already have one? <Link href={`/login?next=${encodeURIComponent(next)}`} className="font-semibold text-ink underline">Log in</Link>
+        {t('Already have one?')} <Link href={`/login?next=${encodeURIComponent(next)}`} className="font-semibold text-ink underline">{t('Log in')}</Link>
       </p>
       {fromGoogle && (
         <p className="mb-4 rounded-lg bg-[#f6ecd6] px-3 py-2 text-sm text-[#7a5a17]">
-          We couldn't find a Codiq account for that Google email. Choose student or parent below, then continue with Google.
+          {t("We couldn't find a Codiq account for that Google email. Choose student or parent below, then continue with Google.")}
         </p>
       )}
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-paper p-1">
-          {(['STUDENT', 'PARENT'] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setValue('accountType', t)}
-              className={cx('min-h-10 rounded-lg text-sm font-semibold', type === t ? 'bg-white shadow-sm' : 'text-muted')}>
-              {t === 'STUDENT' ? "I'm a student" : "I'm a parent"}
+          {(['STUDENT', 'PARENT'] as const).map((k) => (
+            <button key={k} type="button" onClick={() => setValue('accountType', k)}
+              className={cx('min-h-10 rounded-lg text-sm font-semibold', type === k ? 'bg-white shadow-sm' : 'text-muted')}>
+              {k === 'STUDENT' ? t("I'm a student") : t("I'm a parent")}
             </button>
           ))}
         </div>
-        <Field label="Full name" error={formState.errors.name?.message}><Input autoComplete="name" {...register('name')} /></Field>
-        <Field label="Email" error={formState.errors.email?.message}><Input type="email" autoComplete="email" {...register('email')} /></Field>
-        <Field label="Mobile (optional)" error={formState.errors.phone?.message} hint="Used for Fawry and wallet payments">
+        <Field label={t('Full name')} error={formState.errors.name?.message}><Input autoComplete="name" {...register('name')} /></Field>
+        <Field label={t('Email')} error={formState.errors.email?.message}><Input type="email" autoComplete="email" {...register('email')} /></Field>
+        <Field label={t('Mobile (optional)')} error={formState.errors.phone?.message} hint={t('Used for Fawry and wallet payments')}>
           <Input inputMode="numeric" placeholder="01012345678" {...register('phone')} />
         </Field>
-        <Field label="Password" error={formState.errors.password?.message}><Input type="password" autoComplete="new-password" {...register('password')} /></Field>
+        <Field label={t('Password')} error={formState.errors.password?.message}><Input type="password" autoComplete="new-password" {...register('password')} /></Field>
         {type === 'STUDENT' && (
-          <Field label="Track" error={formState.errors.track?.message}>
+          <Field label={t('Track')} error={formState.errors.track?.message}>
             <Select {...register('track')}>
-              {(['KIDS', 'SCHOOL', 'COLLEGE'] as const).map((t) => <option key={t} value={t}>{TRACK_LABEL[t]} — {TRACK_AUDIENCE[t]}</option>)}
+              {(['KIDS', 'SCHOOL', 'COLLEGE'] as const).map((k) => <option key={k} value={k}>{t(TRACK_LABEL[k])} — {t(TRACK_AUDIENCE[k])}</option>)}
             </Select>
           </Field>
         )}
-        {type === 'PARENT' && <p className="text-sm text-muted">You can add your children from your dashboard after signing up.</p>}
+        {type === 'PARENT' && <p className="text-sm text-muted">{t('After signing up, link your children from your dashboard. They need their own student account first.')}</p>}
         {error && <p className="rounded-lg bg-[#f7e1df] px-3 py-2 text-sm text-danger">{error}</p>}
-        <Button type="submit" disabled={formState.isSubmitting}>{formState.isSubmitting ? 'Creating…' : 'Create account'}</Button>
+        <Button type="submit" disabled={formState.isSubmitting}>{formState.isSubmitting ? t('Creating…') : t('Create account')}</Button>
       </form>
       <OrDivider />
       <GoogleButton text="signup_with" next={next} extra={{ accountType: type, track: type === 'STUDENT' ? track : undefined }} />

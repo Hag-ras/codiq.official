@@ -120,6 +120,16 @@ What gets sent: welcome email on sign-up, password-reset link, and a payment rec
 
 ---
 
+## 6. Fawry (pay at a Fawry outlet) — optional
+1. Apply as a merchant at https://www.fawry.com (Fawry Pay / "Pay at Fawry" for online merchants), or ask your Paymob account manager, because Paymob can also issue Fawry codes and then you need nothing extra.
+2. Fawry sends you staging (test) access first: a **Merchant Code** and a **Security Key**. Put them in `FAWRY_MERCHANT_CODE` and `FAWRY_SECURE_KEY`; `FAWRY_BASE_URL` stays on the staging address while testing.
+3. For live, Fawry asks for business documents (commercial register, tax card, bank account) and gives you production keys and a production URL. Change `FAWRY_BASE_URL` to the production address they give you.
+4. Give Fawry your callback URL: `https://<your-api>/api/payments/webhooks/fawry`.
+If you skip Fawry, leave the three values empty and the option stays unusable; hide it in the checkout before launch.
+
+## 7. Videos from YouTube (for now)
+Upload each lesson to YouTube as **Unlisted** (not Private, because private videos will not play for students). In the admin, create or edit a recorded session and paste the link into **YouTube link**. Anyone who has the link can watch it, so it is weaker protection than the paid-course storage in section 3. Move to Cloudflare R2 when you need to protect paid content.
+
 ## Admin access rules
 - Every URL with an `admin` path segment is locked to admins by a global guard (`AdminAreaGuard`), even if a route forgets `@Roles` or is marked public. Roles are read from the database, not the token, so a demoted admin loses access immediately.
 - Admin pages check again on the server; non-admins are redirected.

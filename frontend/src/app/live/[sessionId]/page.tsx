@@ -21,13 +21,13 @@ export default function LivePage({ params }: { params: Promise<{ sessionId: stri
 
   if (error)
     return (
-      <div className="grid min-h-dvh place-items-center bg-ink p-6 text-center text-paper">
+      <div className="grid min-h-dvh place-items-center bg-night p-6 text-center text-day">
         <div><p className="mb-4 text-lg">{(error as Error).message}</p><Link href="/dashboard" className="underline">Back to dashboard</Link></div>
       </div>
     );
 
   return (
-    <div className="flex h-dvh flex-col bg-[#111214] text-paper" data-lk-theme="default">
+    <div className="flex h-dvh flex-col bg-[#111214] text-day" data-lk-theme="default">
       {conn ? (
         <LiveKitRoom serverUrl={conn.url} token={conn.token} connect video={conn.isHost} audio={conn.isHost}
           onDisconnected={() => router.push(`/dashboard/sessions/${sessionId}`)} className="flex min-h-0 flex-1 flex-col">

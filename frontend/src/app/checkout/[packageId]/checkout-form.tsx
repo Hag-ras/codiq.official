@@ -35,7 +35,7 @@ export function CheckoutForm({ pkg, me, initialBilling }: { pkg: Package; me: Me
 
   const baseAmount = billing === 'ONE_TIME' ? pkg.priceOneTime : pkg.priceMonthly!;
   const amount = quote ? quote.finalAmount : baseAmount;
-  const methods = METHODS.filter((m) => m.id !== 'INSTALLMENTS' || (billing === 'ONE_TIME' && pkg.installmentsAllowed));
+  const methods = METHODS.filter((m) => (m.id !== 'INSTALLMENTS' || (billing === 'ONE_TIME' && pkg.installmentsAllowed)) && (m.id !== 'FAWRY' || process.env.NEXT_PUBLIC_ENABLE_FAWRY === '1'));
   const isParent = me.role === 'PARENT';
 
   async function applyCoupon() {

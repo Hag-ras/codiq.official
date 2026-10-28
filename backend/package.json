@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "check:env": "ts-node scripts/check-env.ts",
     "test:access": "ts-node scripts/test-access.ts",
-    "test:guard": "ts-node scripts/test-admin-guard.ts"
+    "test:guard": "ts-node scripts/test-admin-guard.ts",
+    "test:flow": "ts-node scripts/test-flow.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -27,7 +28,9 @@
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/platform-socket.io": "^11.2.8",
     "@nestjs/throttler": "^6.3.0",
+    "@nestjs/websockets": "^11.2.8",
     "@prisma/client": "^6.1.0",
     "argon2": "^0.41.1",
     "class-transformer": "^0.5.1",
@@ -41,7 +44,8 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -50,6 +54,7 @@
     "@types/node": "^22.10.0",
     "@types/passport-jwt": "^4.0.1",
     "prisma": "^6.1.0",
+    "socket.io-client": "^4.8.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.0"
   }

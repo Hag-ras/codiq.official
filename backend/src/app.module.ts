@@ -12,6 +12,7 @@ import { LearningModule } from './learning/learning.module';
 import { PaymentsModule } from './payments/payments.module';
 import { LiveModule } from './live/live.module';
 import { ParentsModule } from './parents/parents.module';
+import { SupportModule } from './support/support.module';
 import { AdminModule } from './admin/admin.module';
 import { AccountModule } from './account/account.module';
 import { CouponsModule } from './coupons/coupons.module';
@@ -30,6 +31,7 @@ import { AdminAreaGuard } from './common/admin-area.guard';
     PaymentsModule,
     LiveModule,
     ParentsModule,
+    SupportModule,
     AdminModule,
     AccountModule,
     CouponsModule,

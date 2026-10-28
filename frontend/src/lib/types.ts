@@ -18,7 +18,7 @@ export interface Package {
 
 export interface SessionSummary {
   id: string; order: number; title: string; type: 'LIVE' | 'RECORDED'; startsAt: string | null; durationMin: number;
-  packageId: string; packageName: string; instructorName: string | null; hasRecording: boolean; isLiveNow: boolean;
+  packageId: string; packageName: string; instructorName: string | null; hasRecording: boolean; youtubeId?: string | null; isLiveNow: boolean;
   completed: boolean; dueAt: string | null; submission: { status: 'SUBMITTED' | 'GRADED'; score: number | null } | null;
   quizScore: number | null; pendingSubmissions: number;
 }
@@ -95,6 +95,7 @@ export interface AdminAssignmentDetail {
     feedback: string | null; submittedAt: string; gradedAt: string | null;
     student: { id: string; name: string; email: string; avatar: string | null };
   }[];
+  notSubmitted: { id: string; name: string; email: string; phone: string | null; avatar: string | null }[];
 }
 
 export interface AdminCoupon {
@@ -132,4 +133,20 @@ export interface StudentPaymentDetail {
   student: { id: string; name: string; email: string; track: Track | null; avatar: string | null };
   payments: { id: string; amount: number; discountAmount: number; method: PayMethod; billing: Billing; status: PayStatus; providerRef: string | null; createdAt: string; paidAt: string | null; package: { name: string }; payer: { name: string }; coupon: { code: string } | null }[];
   enrollments: { billing: Billing; status: string; activeUntil: string | null; package: { name: string } }[];
+}
+
+export interface AdminCourseDetail {
+  id: string; name: string; track: Track; description: string; priceOneTime: number; priceMonthly: number | null; isPublished: boolean; installmentsAllowed: boolean;
+  totals: { revenue: number; paidPayments: number; discounts: number; pending: number; students: number; sessions: number };
+  instructors: { id: string; name: string; email: string; avatar: string | null; sessions: number }[];
+  sessions: { id: string; order: number; title: string; type: string; startsAt: string | null; instructorName: string | null }[];
+  students: {
+    enrollmentId: string; id: string; name: string; email: string; phone: string | null; role: Role; track: Track | null; avatar: string | null;
+    billing: Billing; status: string; active: boolean; activeUntil: string | null; enrolledAt: string; joinedAt: string; completedSessions: number;
+    parent: { name: string; email: string; phone: string | null } | null;
+  }[];
+  payments: {
+    id: string; amount: number; discountAmount: number; method: PayMethod; billing: Billing; status: PayStatus; providerRef: string | null;
+    createdAt: string; paidAt: string | null; coupon: { code: string } | null; student: { id: string; name: string }; payer: { name: string; email: string };
+  }[];
 }

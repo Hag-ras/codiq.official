@@ -63,6 +63,40 @@ Everything done in this session, in order, with the result of each step.
 - **Admin authorization**: `AdminAreaGuard` locks every URL with an `admin` path segment to admins, even if a developer forgets `@Roles` or marks the route `@Public()` (checked against the database role; case, slashes, dots and encoding tricks are normalised). Verified with a temporary unprotected `/admin` route: anonymous 401, student 403, and a `@Public()` admin route fails closed (401 for everyone).
 - Tests: `npm run test:guard` (19 URL cases) and `npm run test:access` (29 admin routes x 5 kinds of users, demoted token, assistant, lockout). All pass.
 
+## 11. Course detail, parents and support (2026-10-28)
+- **Course detail** (`/dashboard/admin/packages/[id]`, API `GET /admin/courses/:id`): instructors (from the course's sessions), enrolled students with phone, parent, plan, progress and status, full payment log, inline edit. The course title on the Courses page is the link.
+- **Assignments**: the detail page has a Submitted table and a Not submitted table (active enrolled students with no submission).
+- **Users & team**: Make admin / Remove admin buttons (the same safeguards: no self-demotion, never zero admins).
+- **Parents**: `GET /parents/children/:id/progress` (only for the parent's own child) and `/dashboard/children/[id]`: per package, every session with completion, live attendance, quiz best score and assignment state (graded, waiting, missing, to do).
+- **Support = live chat over WebSocket (no email)**: tables `SupportThread` and `SupportChatMessage` (migration `support_live_chat`), socket.io on the API port (`src/support/support.module.ts`). Parents chat at `/dashboard/support` (and through the floating "Chat with us" button); admins and assistants answer in `/dashboard/inbox` (open/resolved, unread counts, typing indicator, mark resolved; a new message reopens a resolved chat). The socket is authenticated by the `access_token` cookie, staff actions re-check the role in the database on every event, and a minute timer drops sockets whose role changed. 30 events per minute per socket, 2000 characters per message. The web app connects straight to the API (`NEXT_PUBLIC_WS_URL`), because Next's rewrites don't proxy WebSockets reliably. In production the web app and API must share a parent domain so the cookie reaches the API.
+- **Chat for everyone**: students, parents and instructors chat at `/dashboard/support`; the floating "Chat with us" button is on every page except for admins and assistants. The parent home no longer has its own "Chat with support" button. Visitors who are not logged in use the floating button (migration `support_guest_chat`): name, optional phone/email and a first question start a chat, and a secret key kept in the browser lets them reload and continue. Visitor sockets can only start one chat (max 3 new chats per IP per hour, 300 messages per chat) and never reach other conversations. Behind a proxy, make sure it sets `X-Forwarded-For`. Staff see visitors in the inbox with the role "visitor". Stale login cookies are cleared by the middleware so the public home page works again.
+- **Linking a child**: a parent can no longer create student accounts. The child must already have a student account; the parent enters their email (`POST /parents/children`) and the student accepts or declines in their own dashboard (`/parent-requests`, table `ParentLinkRequest`, migration `parent_link_requests`). Nothing is shared before acceptance. Unknown email or a non-student account: 404; already linked to this or another parent: 409. 10 requests per minute.
+- **Home page**: signed-in users visiting `/` go straight to their own dashboard. Logged-out visitors see the public site.
+- Login and signup show a "Continue with Google" button even before the key is set (it explains what is missing).
+- `npm run test:access` extended with the new admin routes. All pass.
+
+## 12. Theme, language, motion and the full-flow test (2026-10-28)
+- **Dark mode**: toggle (sun/moon) top right on the public site, auth pages and dashboard; remembered in `localStorage`, defaults to the system setting, set before first paint (no flash). ink and paper swap roles via CSS variables; the footer, hero terminal, banners and video stay dark in both themes (`bg-night`).
+- **Arabic**: `EN / ع` button next to it. Cookie `lang`, server-rendered `lang` and `dir="rtl"`, Noto Sans Arabic. Strings are wrapped in `t('English text')` and translated in `src/lib/ar.ts`; a missing translation falls back to English. Translated: public site, pricing, auth pages, dashboard menu, student home, parent home, linking, support chat and the visitor chat widget. Still English: the admin pages, billing, checkout, sessions, profile and grading screens.
+- **Motion**: hero glow and gradient text, typing terminal, scroll reveal, staggered cards, hover lift, button shine, theme icon spin, chat pop and message slide-in, a pulsing chat button. All of it is switched off for people who prefer reduced motion.
+- **Pointer**: every clickable element shows the hand cursor.
+- **`npm run test:flow`**: visitor chat, sign-ups, child linking, course creation, free coupon checkout, learning, grading, parent report, admin views, support chat for four roles, access rules, pages per role, language and theme, then cleanup (about 80 checks).
+- `docs/DEPLOY.md`: every key and setting needed to deploy.
+
+## 13. Keys and YouTube videos (2026-10-28)
+- New random `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` written to `backend/.env` (the access secret also to `frontend/.env.local`, identical). Both files are git-ignored. Everyone was logged out once.
+- Supabase: the only project on the account is `chemistry-platform` (unrelated), and creating a new one was blocked, so the database is still local. Nothing was written to the other project.
+- **YouTube videos**: `Session.youtubeId` (migration `session_youtube`). Admin pastes a YouTube link (watch, youtu.be, embed, shorts or id) when creating or editing a recorded session; students get an embedded player (youtube-nocookie) that also records watch progress. A file upload still works and YouTube wins if both are set.
+- `docs/SETUP-KEYS.md` sections 6 (Fawry) and 7 (YouTube) added.
+
+## 14. Supabase project and deploy files (2026-10-28)
+- Created the Supabase project **codiq** (ref `dteofilfyddowqkfzfzv`, eu-central-1, $0/month plan) and applied the whole schema through the Supabase connector as migration `codiq_initial_schema`: 16 tables, row level security ON for all of them with no policies, so the Supabase REST API exposes nothing. The API reaches the database directly with its own role. The `chemistry-platform` projects on Supabase and Vercel were not touched.
+- The database password cannot be read through the connector. After setting it, run these once from `backend` with the production `DIRECT_URL`, so Prisma knows the tables already exist: `npx prisma migrate resolve --applied <name>` for each folder in `prisma/migrations`. After that `npm run db:deploy` works for future changes.
+- `backend/.env.production.example` and `render.yaml` (Render blueprint for the API) added.
+
+## 15. Fawry switched off
+The Fawry option is hidden at checkout (shown only when `NEXT_PUBLIC_ENABLE_FAWRY=1`) and the API refuses Fawry payments while `FAWRY_MERCHANT_CODE` is empty. The code and webhook are kept for later.
+
 ## Results
 - `backend`: `npm run build` OK. `frontend`: `npm run build` OK (24 routes).
 - `npm run check:env`: database OK, storage OK, Google / Paymob / Fawry waiting for your keys, JWT secrets still placeholders.

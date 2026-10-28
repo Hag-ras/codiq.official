@@ -17,7 +17,7 @@ export function InstructorHome({ me }: { me: Me }) {
       <PageTitle title={`Teaching · ${me.name.split(' ')[0]}`} sub={`${sessions.length} sessions assigned to you`}
         action={<ButtonLink href="/dashboard/grading" variant="secondary">{pending} to grade</ButtonLink>} />
       {live.map((s) => (
-        <div key={s.id} className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-(--radius-card) bg-ink p-5 text-paper">
+        <div key={s.id} className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-(--radius-card) bg-night p-5 text-day">
           <div>
             <Badge tone="live">● Starting now</Badge>
             <div className="mt-2 text-lg font-bold">{s.title}</div>

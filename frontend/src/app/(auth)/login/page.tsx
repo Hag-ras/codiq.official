@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { api } from '@/lib/api';
 import { Button, Field, Input } from '@/components/ui';
 import { GoogleButton, OrDivider } from '@/components/google-button';
+import { useT } from '@/components/i18n-provider';
 
 const schema = z.object({ email: z.string().email('Enter a valid email'), password: z.string().min(1, 'Enter your password') });
 
@@ -20,6 +21,7 @@ const DEMO = [
 ];
 
 function LoginForm() {
+  const t = useT();
   const router = useRouter();
   const next = useSearchParams().get('next') ?? '/dashboard';
   const [error, setError] = useState('');
@@ -38,18 +40,18 @@ function LoginForm() {
 
   return (
     <>
-      <h1 className="font-mono text-2xl font-bold tracking-[-0.03em]">Log in</h1>
+      <h1 className="font-mono text-2xl font-bold tracking-[-0.03em]">{t('Log in')}</h1>
       <p className="mt-1 mb-6 text-[15px] text-muted">
-        New to Codiq? <Link href={`/signup?next=${encodeURIComponent(next)}`} className="font-semibold text-ink underline">Create an account</Link>
+        {t('New to Codiq?')} <Link href={`/signup?next=${encodeURIComponent(next)}`} className="font-semibold text-ink underline">{t('Create an account')}</Link>
       </p>
       <GoogleButton text="signin_with" next={next} onNeedsProfile={() => router.push(`/signup?google=1&next=${encodeURIComponent(next)}`)} />
       <OrDivider />
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <Field label="Email" error={formState.errors.email?.message}><Input type="email" autoComplete="email" {...register('email')} /></Field>
-        <Field label="Password" error={formState.errors.password?.message}><Input type="password" autoComplete="current-password" {...register('password')} /></Field>
-        <Link href="/forgot-password" className="-mt-1 self-end text-sm font-semibold text-muted hover:text-ink">Forgot password?</Link>
+        <Field label={t('Email')} error={formState.errors.email?.message}><Input type="email" autoComplete="email" {...register('email')} /></Field>
+        <Field label={t('Password')} error={formState.errors.password?.message}><Input type="password" autoComplete="current-password" {...register('password')} /></Field>
+        <Link href="/forgot-password" className="-mt-1 self-end text-sm font-semibold text-muted hover:text-ink">{t('Forgot password?')}</Link>
         {error && <p className="rounded-lg bg-[#f7e1df] px-3 py-2 text-sm text-danger">{error}</p>}
-        <Button type="submit" disabled={formState.isSubmitting}>{formState.isSubmitting ? 'Logging in…' : 'Log in'}</Button>
+        <Button type="submit" disabled={formState.isSubmitting}>{formState.isSubmitting ? t('Logging in…') : t('Log in')}</Button>
       </form>
       {process.env.NODE_ENV !== 'production' && (
         <div className="mt-6 border-t border-line pt-4">

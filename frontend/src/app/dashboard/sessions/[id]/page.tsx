@@ -6,6 +6,7 @@ import { api, openSignedUrl, uploadFile } from '@/lib/api';
 import { fmtDate, fmtSize } from '@/lib/format';
 import { Badge, Button, ButtonLink, Card, Empty, Textarea, cx } from '@/components/ui';
 import type { SessionDetail } from '@/lib/types';
+import { YouTubePlayer } from '@/components/youtube-player';
 
 type Tab = 'video' | 'materials' | 'assignment' | 'quiz';
 
@@ -61,7 +62,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 }
 
 function VideoTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
-  const { data } = useQuery({ queryKey: ['recording', s.id], queryFn: () => api<{ url: string }>(`/sessions/${s.id}/recording`), enabled: s.hasRecording, staleTime: 50 * 60_000 });
+  const { data } = useQuery({ queryKey: ['recording', s.id], queryFn: () => api<{ url?: string; youtubeId?: string }>(`/sessions/${s.id}/recording`), enabled: s.hasRecording, staleTime: 50 * 60_000 });
   const lastSent = useRef(0);
 
   if (!s.hasRecording)
@@ -84,8 +85,10 @@ function VideoTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-(--radius-card) bg-ink">
-      {data?.url ? (
+    <div className="overflow-hidden rounded-(--radius-card) bg-night">
+      {data?.youtubeId ? (
+        <YouTubePlayer videoId={data.youtubeId} onProgress={(t, done) => { api(`/sessions/${s.id}/progress`, { method: 'POST', json: { watchedSeconds: t, completed: done } }).catch(() => null); }} />
+      ) : data?.url ? (
         <video src={data.url} controls playsInline controlsList="nodownload" className="aspect-video w-full"
           onTimeUpdate={(e) => report(e.currentTarget)} onEnded={(e) => report(e.currentTarget, true)} />
       ) : (

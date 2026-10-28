@@ -9,6 +9,8 @@ const RULES: [string, Role[]][] = [
   ['/dashboard/admin', ['ADMIN']],
   ['/dashboard/grading', ['INSTRUCTOR', 'ASSISTANT', 'ADMIN']],
   ['/dashboard/children', ['PARENT']],
+  ['/dashboard/support', ['STUDENT', 'PARENT', 'INSTRUCTOR']],
+  ['/dashboard/inbox', ['ADMIN', 'ASSISTANT']],
   ['/dashboard/billing', ['STUDENT', 'PARENT']],
   ['/dashboard/courses', ['STUDENT']],
   ['/dashboard/catalog', ['STUDENT', 'PARENT']],
@@ -45,7 +47,11 @@ export async function middleware(req: NextRequest) {
         return res;
       }
     }
-    return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(pathname + search)}`, req.url));
+    // Not signed in (or the session is dead): drop stale cookies so the public home page works again
+    const res = NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(pathname + search)}`, req.url));
+    res.cookies.delete('access_token');
+    res.cookies.delete('refresh_token');
+    return res;
   }
   if (!rule[1].includes(role)) return NextResponse.redirect(new URL('/dashboard?denied=1', req.url));
   return NextResponse.next();

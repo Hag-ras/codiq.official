@@ -38,6 +38,8 @@ export class PaymentsService {
   ) {}
 
   async checkout(user: AuthUser, dto: CheckoutDto) {
+    // Fawry is optional: without a merchant code the option does not exist
+    if (dto.method === PaymentMethod.FAWRY && !this.config.get('FAWRY_MERCHANT_CODE')) throw new BadRequestException('Fawry is not available. Please choose another payment method.');
     const pkg = await this.prisma.package.findFirst({ where: { id: dto.packageId, isPublished: true } });
     if (!pkg) throw new NotFoundException('Package not found');
 
@@ -182,6 +184,7 @@ class PaymentsController {
     return this.payments.checkout(u, dto);
   }
 
+  @Roles(Role.STUDENT, Role.PARENT)
   @Get('mine')
   mine(@CurrentUser() u: AuthUser) {
     return this.prisma.payment.findMany({
@@ -191,6 +194,7 @@ class PaymentsController {
     });
   }
 
+  @Roles(Role.STUDENT, Role.PARENT, Role.ADMIN)
   @Get(':id')
   async one(@CurrentUser() u: AuthUser, @Param('id') id: string) {
     const p = await this.prisma.payment.findUnique({ where: { id }, include: { package: { select: { name: true } } } });

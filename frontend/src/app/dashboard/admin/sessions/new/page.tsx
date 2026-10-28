@@ -11,7 +11,7 @@ import type { Package } from '@/lib/types';
 type Material = { name: string; fileKey: string; sizeBytes: number; mimeType: string };
 type Values = {
   packageId: string; title: string; description: string; type: 'LIVE' | 'RECORDED';
-  startsAt: string; durationMin: number; instructorId: string;
+  startsAt: string; durationMin: number; instructorId: string; youtubeUrl?: string;
   assignmentTitle: string; assignmentBrief: string; assignmentDue: string; maxScore: number;
   questions: { text: string; options: { value: string }[]; correctIndex: number }[];
 };
@@ -54,7 +54,7 @@ export default function NewSessionPage() {
         json: {
           packageId: v.packageId, title: v.title, description: v.description || undefined, type: v.type,
           startsAt: v.startsAt ? new Date(v.startsAt).toISOString() : undefined, durationMin: Number(v.durationMin),
-          instructorId: v.instructorId || undefined, videoKey: video?.fileKey, materials,
+          instructorId: v.instructorId || undefined, videoKey: video?.fileKey, youtubeUrl: v.youtubeUrl?.trim() || undefined, materials,
           assignment: v.assignmentTitle ? { title: v.assignmentTitle, brief: v.assignmentBrief, dueAt: v.assignmentDue ? new Date(v.assignmentDue).toISOString() : undefined, maxScore: Number(v.maxScore) } : undefined,
           quiz: questions.length ? { questions } : undefined,
         },
@@ -95,7 +95,10 @@ export default function NewSessionPage() {
           <Field label="Duration (minutes)"><Input type="number" min={5} {...register('durationMin')} /></Field>
           {type === 'RECORDED' && (
             <div className="sm:col-span-2">
-              <Field label="Video" hint="MP4 recommended. Live classes are recorded automatically when the instructor starts recording.">
+              <Field label="YouTube link" hint="Upload the video to YouTube as Unlisted, then paste the link here. Easiest way to start.">
+                <Input placeholder="https://youtu.be/..." {...register('youtubeUrl')} />
+              </Field>
+              <Field label="Or upload a video file" hint="MP4 recommended. Live classes are recorded automatically when the instructor starts recording.">
                 <Input type="file" accept="video/*" onChange={(e) => upload(e.target.files, 'recording')} />
               </Field>
               {uploading === 'recording' && <p className="mt-1 text-sm text-muted">Uploading video…</p>}

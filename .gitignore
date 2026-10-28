@@ -6,3 +6,6 @@ dist/
 .env.*.local
 *.log
 *.tsbuildinfo
+.env.*.bak
+*.bak
+.env.local-docker.bak

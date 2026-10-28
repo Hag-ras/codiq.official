@@ -73,6 +73,32 @@ function EditUser({ user, onClose, onSaved }: { user: AdminUser; onClose: () => 
   );
 }
 
+type Confirm = { title: string; body: string; confirmLabel: string; danger?: boolean; run: () => Promise<void> };
+
+/** A real dialog instead of window.confirm(), which some browsers block or silently dismiss. */
+function ConfirmDialog({ c, onClose }: { c: Confirm; onClose: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl bg-white p-6 sm:rounded-2xl">
+        <h2 id="confirm-title" className="font-mono text-lg font-bold">{c.title}</h2>
+        <p className="mt-2 text-[15px] whitespace-pre-line text-[#4a4945]">{c.body}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant={c.danger ? 'danger' : 'primary'} disabled={busy} autoFocus onClick={async () => { setBusy(true); try { await c.run(); } finally { setBusy(false); onClose(); } }}>{busy ? 'Working…' : c.confirmLabel}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const roleWarning = (u: AdminUser, to: Role) =>
+  to === 'ADMIN'
+    ? `Are you sure you want to make ${u.name} (${u.email}) an ADMIN?\n\nAdmins can see and change everything: users, payments, courses, coupons and support chats.`
+    : u.role === 'ADMIN'
+      ? `Are you sure you want to remove admin access from ${u.name} (${u.email})?\n\nThey will become ${ROLE_NAME[to].toLowerCase() === 'instructor' ? 'an instructor' : `a ${ROLE_NAME[to].toLowerCase()}`} and lose access to the admin area.`
+      : `Are you sure you want to change ${u.name} (${u.email}) from ${ROLE_NAME[u.role].toLowerCase()} to ${ROLE_NAME[to].toLowerCase()}?\n\nThey will need to log in again.`;
+
 export default function AdminUsersPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState('');
@@ -83,20 +109,28 @@ export default function AdminUsersPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [confirming, setConfirming] = useState<Confirm | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ['users'] });
 
-  const changeRole = async (u: AdminUser, to: Role) => {
-    if (!confirm(`${to === 'ASSISTANT' ? 'Promote' : 'Change'} ${u.name} to ${ROLE_NAME[to]}? They will need to log in again.`)) return;
+  const applyRole = async (u: AdminUser, to: Role) => {
     try { await api(`/users/${u.id}/role`, { method: 'PATCH', json: { role: to } }); setNotice({ ok: true, text: `${u.name} is now ${ROLE_NAME[to].toLowerCase()}.` }); }
     catch (e) { setNotice({ ok: false, text: (e as Error).message }); }
     refresh();
   };
-
-  const remove = async (u: AdminUser) => {
-    if (!confirm(`Delete ${u.name} (${u.email}) permanently?\n\nTheir enrollments, progress and submissions are deleted too. This can't be undone.`)) return;
-    try { await api(`/users/${u.id}`, { method: 'DELETE' }); setNotice({ ok: true, text: `${u.name} was deleted.` }); refresh(); }
-    catch (e) { setNotice({ ok: false, text: (e as Error).message }); }
+  const askRole = (u: AdminUser, to: Role) => {
+    if (to === u.role) return;
+    setConfirming({ title: to === 'ADMIN' ? 'Make admin?' : 'Change role?', body: roleWarning(u, to), confirmLabel: to === 'ADMIN' ? 'Yes, make admin' : 'Yes, change role', danger: to === 'ADMIN' || u.role === 'ADMIN', run: () => applyRole(u, to) });
   };
+
+  const remove = (u: AdminUser) =>
+    setConfirming({
+      title: 'Delete user?', confirmLabel: 'Yes, delete', danger: true,
+      body: `Are you sure you want to permanently delete ${u.name} (${u.email})?\n\nTheir enrollments, progress and submissions are deleted too. This can't be undone.`,
+      run: async () => {
+        try { await api(`/users/${u.id}`, { method: 'DELETE' }); setNotice({ ok: true, text: `${u.name} was deleted.` }); refresh(); }
+        catch (e) { setNotice({ ok: false, text: (e as Error).message }); }
+      },
+    });
 
   return (
     <>
@@ -137,17 +171,12 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-3">{fmtDate(u.createdAt)}</td>
                 <td className="px-4 py-3 font-mono">{u._count.enrollments}</td>
                 <td className="px-4 py-2">
-                  <Select value={u.role} className="min-h-9 py-1.5" aria-label={`Role for ${u.name}`} onChange={async (e) => {
-                    if (!confirm(`Change ${u.name} to ${e.target.value}? They will need to log in again.`)) return;
-                    try { await api(`/users/${u.id}/role`, { method: 'PATCH', json: { role: e.target.value } }); setNotice(null); }
-                    catch (err) { setNotice({ ok: false, text: (err as Error).message }); }
-                    refresh();
-                  }}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_NAME[r]}</option>)}</Select>
+                  <Select value={u.role} className="min-h-9 py-1.5" aria-label={`Role for ${u.name}`} onChange={(e) => askRole(u, e.target.value as Role)}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_NAME[r]}</option>)}</Select>
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex justify-end gap-2">
                     {(u.role === 'STUDENT' || u.role === 'ASSISTANT') && (
-                      <Button variant="ghost" className="min-h-9 py-1.5" onClick={() => changeRole(u, u.role === 'STUDENT' ? 'ASSISTANT' : 'STUDENT')}>
+                      <Button variant="ghost" className="min-h-9 py-1.5" onClick={() => askRole(u, u.role === 'STUDENT' ? 'ASSISTANT' : 'STUDENT')}>
                         {u.role === 'STUDENT' ? 'Make assistant' : 'Back to student'}
                       </Button>
                     )}
@@ -160,6 +189,7 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+      {confirming && <ConfirmDialog c={confirming} onClose={() => setConfirming(null)} />}
       {editing && <EditUser user={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setNotice({ ok: true, text: 'Saved.' }); refresh(); }} />}
 
       <h2 className="mb-3 font-mono text-lg font-bold">What each role can do</h2>

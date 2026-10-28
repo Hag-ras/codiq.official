@@ -7,6 +7,22 @@ import { Prisma, Role, SessionType } from '@prisma/client';
 import { AccessService, activeEnrollment, PrismaService, StorageService } from '../common/infra.module';
 import { AuthUser, CurrentUser, Roles } from '../common/decorators';
 
+/** Accepts watch, youtu.be, embed, shorts and live links (or a bare 11 character id) and returns the video id. */
+export function parseYoutubeId(input: string): string | null {
+  const v = input.trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(v)) return v;
+  try {
+    const u = new URL(v);
+    const host = u.hostname.replace(/^www\.|^m\./, '');
+    let id: string | null = null;
+    if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+    else if (host === 'youtube.com' || host === 'youtube-nocookie.com') id = u.searchParams.get('v') ?? /^\/(?:embed|shorts|live|v)\/([^/?]+)/.exec(u.pathname)?.[1] ?? null;
+    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 class MaterialDto {
   @IsString() name!: string;
   @IsString() fileKey!: string;
@@ -38,6 +54,8 @@ export class CreateSessionDto {
   @IsOptional() @IsInt() @Min(5) durationMin?: number;
   @IsOptional() @IsString() instructorId?: string;
   @IsOptional() @IsString() videoKey?: string;
+  /** A YouTube link (unlisted is best). Used instead of an uploaded video. */
+  @IsOptional() @IsString() youtubeUrl?: string;
   @IsOptional() @IsInt() @Min(1) order?: number;
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => MaterialDto) materials?: MaterialDto[];
   @IsOptional() @ValidateNested() @Type(() => AssignmentDto) assignment?: AssignmentDto;
@@ -50,6 +68,8 @@ class UpdateSessionDto {
   @IsOptional() @IsInt() durationMin?: number;
   @IsOptional() @IsString() instructorId?: string;
   @IsOptional() @IsString() videoKey?: string;
+  /** Empty string removes the YouTube video */
+  @IsOptional() @IsString() youtubeUrl?: string;
 }
 class ProgressDto {
   @IsInt() @Min(0) watchedSeconds!: number;
@@ -66,7 +86,7 @@ export class SessionsService {
     return {
       id: s.id, order: s.order, title: s.title, type: s.type, startsAt: s.startsAt, durationMin: s.durationMin,
       packageId: s.packageId, packageName: s.package?.name, instructorName: s.instructor?.name ?? null,
-      hasRecording: !!s.videoKey,
+      hasRecording: !!s.videoKey || !!s.youtubeId,
       isLiveNow: s.type === 'LIVE' && !!start && now.getTime() >= start.getTime() - 15 * 60_000 && now <= end!,
       completed: s.progress?.[0]?.completed ?? false,
       dueAt: s.assignment?.dueAt ?? null,
@@ -133,6 +153,7 @@ export class SessionsService {
     const showAnswers = !isStudent || attempted;
     return {
       ...this.summary(s),
+      youtubeId: s.youtubeId ?? null,
       description: s.description,
       package: s.package,
       instructor: s.instructor,
@@ -152,6 +173,11 @@ export class SessionsService {
   async create(dto: CreateSessionDto) {
     if (!(await this.prisma.package.findUnique({ where: { id: dto.packageId } }))) throw new NotFoundException('Package not found');
     if (dto.type === 'LIVE' && !dto.startsAt) throw new BadRequestException('Live sessions need a start time');
+    let youtubeId: string | null = null;
+    if (dto.youtubeUrl?.trim()) {
+      youtubeId = parseYoutubeId(dto.youtubeUrl);
+      if (!youtubeId) throw new BadRequestException('That does not look like a YouTube link');
+    }
     dto.quiz?.questions.forEach((q, i) => {
       if (q.correctIndex >= q.options.length) throw new BadRequestException(`Question ${i + 1}: pick a correct answer`);
     });
@@ -161,7 +187,7 @@ export class SessionsService {
       data: {
         packageId: dto.packageId, order, title: dto.title, description: dto.description, type: dto.type,
         startsAt: dto.startsAt ? new Date(dto.startsAt) : null, durationMin: dto.durationMin ?? 60,
-        instructorId: dto.instructorId, videoKey: dto.videoKey,
+        instructorId: dto.instructorId, videoKey: dto.videoKey, youtubeId,
         materials: dto.materials?.length ? { create: dto.materials } : undefined,
         assignment: dto.assignment
           ? { create: { ...dto.assignment, dueAt: dto.assignment.dueAt ? new Date(dto.assignment.dueAt) : null } }
@@ -180,12 +206,19 @@ export class SessionsService {
   }
 
   update(id: string, dto: UpdateSessionDto) {
-    return this.prisma.session.update({ where: { id }, data: { ...dto, startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined } });
+    const { youtubeUrl, ...rest } = dto;
+    let youtubeId: string | null | undefined;
+    if (youtubeUrl !== undefined) {
+      youtubeId = youtubeUrl.trim() ? parseYoutubeId(youtubeUrl) : null;
+      if (youtubeUrl.trim() && !youtubeId) throw new BadRequestException('That does not look like a YouTube link');
+    }
+    return this.prisma.session.update({ where: { id }, data: { ...rest, ...(youtubeId !== undefined ? { youtubeId } : {}), startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined } });
   }
 
   async recordingUrl(user: AuthUser, id: string) {
     await this.access.assertSessionAccess(user, id);
-    const s = await this.prisma.session.findUniqueOrThrow({ where: { id }, select: { videoKey: true } });
+    const s = await this.prisma.session.findUniqueOrThrow({ where: { id }, select: { videoKey: true, youtubeId: true } });
+    if (s.youtubeId) return { youtubeId: s.youtubeId };
     if (!s.videoKey) throw new NotFoundException('No recording yet');
     return { url: await this.storage.downloadUrl(s.videoKey) };
   }
