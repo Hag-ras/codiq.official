@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  STUDENT
+  PARENT
+  INSTRUCTOR
+  /// Teaching assistant: can view all sessions and grade work, but can't manage content, users or payments
+  ASSISTANT
+  ADMIN
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+enum Track {
+  KIDS
+  SCHOOL
+  COLLEGE
+}
+
+enum SessionType {
+  LIVE
+  RECORDED
+}
+
+enum BillingType {
+  ONE_TIME
+  MONTHLY
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  WALLET
+  INSTALLMENTS
+  FAWRY
+  INSTAPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  AWAITING_REVIEW
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  /// Google account id (the "sub" claim). Null for email/password-only accounts.
+  googleId          String?   @unique
+  /// Google profile picture URL (fallback)
+  avatarUrl         String?
+  /// Storage key of an uploaded profile picture (takes priority over avatarUrl)
+  avatarKey         String?
+  name              String
+  phone             String?
+  role              Role      @default(STUDENT)
+  track             Track?
+  parentId          String?
+  parent            User?     @relation("ParentChildren", fields: [parentId], references: [id])
+  children          User[]    @relation("ParentChildren")
+  refreshTokenHash  String?
+  resetTokenHash    String?
+  resetTokenExpires DateTime?
+  createdAt         DateTime  @default(now())
+
+  enrollments  Enrollment[]
+  paymentsMade Payment[]         @relation("Payer")
+  paymentsFor  Payment[]         @relation("Student")
+  submissions  Submission[]
+  quizAttempts QuizAttempt[]
+  progress     SessionProgress[]
+  taught       Session[]         @relation("Instructor")
+}
+
+/// Prices are stored in piasters (1 EGP = 100).
+model Package {
+  id                  String       @id @default(cuid())
+  slug                String       @unique
+  name                String
+  track               Track
+  description         String
+  priceOneTime        Int
+  priceMonthly        Int?
+  installmentsAllowed Boolean      @default(false)
+  isPublished         Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  sessions            Session[]
+  enrollments         Enrollment[]
+  payments            Payment[]
+  coupons             Coupon[]
+}
+
+model Session {
+  id           String      @id @default(cuid())
+  packageId    String
+  package      Package     @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  order        Int
+  title        String
+  description  String?
+  type         SessionType
+  startsAt     DateTime?
+  durationMin  Int         @default(60)
+  instructorId String?
+  instructor   User?       @relation("Instructor", fields: [instructorId], references: [id])
+  /// Storage key of the recording (uploaded, or produced by LiveKit egress)
+  videoKey     String?
+  createdAt    DateTime    @default(now())
+
+  materials  Material[]
+  assignment Assignment?
+  quiz       Quiz?
+  progress   SessionProgress[]
+
+  @@unique([packageId, order])
+}
+
+model Material {
+  id        String  @id @default(cuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name      String
+  fileKey   String
+  sizeBytes Int
+  mimeType  String
+}
+
+model Assignment {
+  id          String       @id @default(cuid())
+  sessionId   String       @unique
+  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title       String
+  brief       String
+  dueAt       DateTime?
+  maxScore    Int          @default(10)
+  submissions Submission[]
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  text         String?
+  fileKey      String?
+  fileName     String?
+  status       SubmissionStatus @default(SUBMITTED)
+  score        Int?
+  feedback     String?
+  submittedAt  DateTime         @default(now())
+  gradedAt     DateTime?
+
+  @@unique([assignmentId, studentId])
+}
+
+model Quiz {
+  id        String         @id @default(cuid())
+  sessionId String         @unique
+  session   Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title     String
+  passScore Int            @default(60)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String   @id @default(cuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order        Int
+  text         String
+  options      String[]
+  correctIndex Int
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  quizId    String
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers   Int[]
+  score     Int
+  createdAt DateTime @default(now())
+}
+
+model Enrollment {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId   String
+  package     Package          @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  billing     BillingType
+  status      EnrollmentStatus @default(ACTIVE)
+  /// null = lifetime (one-time purchase). Monthly plans extend this by 30 days per payment.
+  activeUntil DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@unique([userId, packageId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  payerId           String
+  payer             User          @relation("Payer", fields: [payerId], references: [id])
+  studentId         String
+  student           User          @relation("Student", fields: [studentId], references: [id])
+  packageId         String
+  package           Package       @relation(fields: [packageId], references: [id])
+  amount            Int
+  currency          String        @default("EGP")
+  method            PaymentMethod
+  billing           BillingType
+  status            PaymentStatus @default(PENDING)
+  provider          String
+  providerRef       String?
+  receiptKey        String?
+  raw               Json?
+  /// Piasters taken off by a coupon (amount is already the discounted price)
+  discountAmount    Int           @default(0)
+  couponId          String?
+  coupon            Coupon?       @relation(fields: [couponId], references: [id])
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+
+  @@index([status])
+}
+
+model SessionProgress {
+  id             String  @id @default(cuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId      String
+  session        Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  watchedSeconds Int     @default(0)
+  completed      Boolean @default(false)
+  attendedLive   Boolean @default(false)
+
+  @@unique([userId, sessionId])
+}
+
+/// Discount codes. PERCENT value = 1..100, FIXED value = piasters off.
+model Coupon {
+  id             String     @id @default(cuid())
+  code           String     @unique
+  description    String?
+  type           CouponType
+  value          Int
+  /// null = unlimited
+  maxRedemptions Int?
+  redeemedCount  Int        @default(0)
+  expiresAt      DateTime?
+  /// Restrict to one package and/or one track (both null = any package)
+  packageId      String?
+  package        Package?   @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  track          Track?
+  active         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  payments       Payment[]
+}

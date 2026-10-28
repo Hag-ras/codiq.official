@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1c1d21;
+  --color-paper: #f5f3ee;
+  --color-line: #e4e0d8;
+  --color-muted: #6b6a66;
+  --color-clay: #ae593a;
+  --color-clay-light: #d4896e;
+  --color-kids: #ae593a;
+  --color-school: #3d7a5a;
+  --color-college: #3b5f9e;
+  --color-danger: #b3261e;
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --animate-blink: blink 1.1s steps(1) infinite;
+  @keyframes blink { 50% { opacity: 0; } }
+}
+
+/* Dashboard tone follows the student's track: playful for kids, calm for college */
+:root { --accent: var(--color-ink); --accent-soft: #ece9e2; --radius-card: 12px; }
+[data-track="KIDS"] { --accent: var(--color-kids); --accent-soft: #f6e6de; --radius-card: 20px; }
+[data-track="SCHOOL"] { --accent: var(--color-school); --accent-soft: #e1eee6; --radius-card: 14px; }
+[data-track="COLLEGE"] { --accent: var(--color-college); --accent-soft: #e2e9f5; --radius-card: 10px; }
+
+/* In @layer base so Tailwind utilities (e.g. text-paper on buttons) can override these */
+@layer base {
+  body { background: var(--color-paper); color: var(--color-ink); }
+  a { color: inherit; }
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+}
