@@ -6,6 +6,7 @@ import { fmtDate } from '@/lib/format';
 import { Badge, ButtonLink, Card, Empty, Progress } from '@/components/ui';
 import type { Me, SessionSummary } from '@/lib/types';
 import { useT } from '@/components/i18n-provider';
+import { StatsStrip } from '@/components/stats-strip';
 
 export type Mine = { packages: { id: string; name: string; billing: string; activeUntil: string | null }[]; sessions: SessionSummary[] };
 
@@ -40,7 +41,6 @@ export function StudentHome({ me }: { me: Me }) {
     ...s.filter((x) => x.dueAt && !x.submission).map((x) => ({ id: x.id, label: `${t('Assignment')} · ${x.title}`, meta: `${t('Due')} ${fmtDate(x.dueAt)}` })),
     ...s.filter((x) => x.completed && x.quizScore === null).map((x) => ({ id: x.id, label: `${t('Quiz')} · ${x.title}`, meta: t('Not taken') })),
   ].slice(0, 5);
-  const streak = s.filter((x) => x.completed).length; // placeholder metric until daily activity tracking exists
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,13 +49,10 @@ export function StudentHome({ me }: { me: Me }) {
           <h1 className="font-mono text-[28px] font-bold tracking-[-0.03em]">{greeting}</h1>
           <p className="mt-1 text-[15px] text-muted">{data.packages.map((p) => p.name).join(' · ')}</p>
         </div>
-        {playful && (
-          <div className="flex gap-2">
-            <Badge tone="accent">{done} {t('sessions done')}</Badge>
-            <Badge tone="accent">{streak * 40} XP</Badge>
-          </div>
-        )}
+        {playful && <Badge tone="accent">{done} {t('sessions done')}</Badge>}
       </div>
+
+      <StatsStrip />
 
       {live && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-(--radius-card) bg-night p-5 text-day">
@@ -64,7 +61,7 @@ export function StudentHome({ me }: { me: Me }) {
             <span className="mt-1 text-lg font-bold">{live.title}</span>
             <span className="text-sm text-[#b4b2ac]">{live.instructorName ? `${t('with')} ${live.instructorName}` : live.packageName}</span>
           </div>
-          <ButtonLink href={`/live/${live.id}`} variant="accent">{playful ? t('Jump in') : t('Join class')}</ButtonLink>
+          <ButtonLink href={`/live/${live.id}`} variant="onDark">{playful ? t('Jump in') : t('Join class')}</ButtonLink>
         </div>
       )}
 

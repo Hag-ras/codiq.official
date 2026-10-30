@@ -40,7 +40,7 @@ async function login(email: string, password = PW): Promise<Jar> {
 }
 async function register(name: string, email: string, type: 'STUDENT' | 'PARENT', track?: string): Promise<Jar> {
   for (let i = 0; i < 40; i++) {
-    const r = await fetch(`${API}/api/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email, password: PW, accountType: type, ...(track ? { track } : {}) }) });
+    const r = await fetch(`${API}/api/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, email, password: PW, accountType: type, acceptTerms: true, ...(track ? { track } : {}) }) });
     if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 5000)); continue; }
     if (r.status !== 201) throw new Error(`register ${email}: ${r.status} ${await r.text()}`);
     return cookieOf(r);
@@ -90,8 +90,8 @@ async function main() {
     check('nobody can register as admin', (await call(null, 'POST', '/auth/register', { name: 'X Y', email: `bad.${tag}@codiq.app`, password: PW, accountType: 'ADMIN' })).status === 400);
 
     section('Parent links the child (the child must exist first)');
-    check('unknown email is refused', (await call(parentJar, 'POST', '/parents/children', { email: `nobody.${tag}@nowhere.io` })).status === 404);
-    const req = await call(parentJar, 'POST', '/parents/children', { email: studentEmail });
+    check('unknown email is refused', (await call(parentJar, 'POST', '/parents/children', { email: `nobody.${tag}@nowhere.io`, confirmGuardian: true })).status === 404);
+    const req = await call(parentJar, 'POST', '/parents/children', { email: studentEmail, confirmGuardian: true });
     check('request sent for the existing student', req.status === 200 && req.json.status === 'PENDING');
     check('parent sees nothing before acceptance', ((await call(parentJar, 'GET', '/parents/children')).json as any[]).length === 0);
     const pending = (await call(studentJar, 'GET', '/parent-requests')).json as any[];

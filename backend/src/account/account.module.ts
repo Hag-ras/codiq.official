@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode, Module, NotFoundException, Param, Patch, Post, Put, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { activeEnrollment, PrismaService, StorageService } from '../common/infra.module';
@@ -11,6 +11,7 @@ import { EG_MOBILE } from '../auth/dto';
 class UpdateProfileDto {
   @IsOptional() @IsString() @MinLength(2) name?: string;
   @IsOptional() @Matches(EG_MOBILE, { message: 'Enter an Egyptian mobile number like 01012345678' }) phone?: string;
+  @IsOptional() @IsBoolean() emailNotifications?: boolean;
 }
 class ChangePasswordDto {
   @IsString() currentPassword!: string;
@@ -21,7 +22,7 @@ class AvatarDto {
   @IsString() key!: string;
 }
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const profileSelect = { id: true, name: true, email: true, phone: true, role: true, track: true, avatarKey: true, avatarUrl: true, createdAt: true };
+const profileSelect = { id: true, name: true, email: true, phone: true, role: true, track: true, avatarKey: true, avatarUrl: true, createdAt: true, emailNotifications: true, termsAcceptedAt: true, guardianConsentAt: true };
 const shape = <T extends { id: string; avatarKey: string | null; avatarUrl: string | null }>(u: T) => {
   const { avatarKey, avatarUrl, ...rest } = u;
   return { ...rest, avatar: avatarSrc({ id: u.id, avatarKey, avatarUrl }) };

@@ -1,12 +1,14 @@
 import { Body, ConflictException, Controller, Delete, Get, HttpCode, Module, NotFoundException, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsEmail } from 'class-validator';
+import { Equals, IsEmail } from 'class-validator';
 import { Role } from '@prisma/client';
 import { activeEnrollment, PrismaService } from '../common/infra.module';
 import { AuthUser, CurrentUser, Roles } from '../common/decorators';
 
 class LinkChildDto {
   @IsEmail() email!: string;
+  /** The parent confirms they are this student's parent or legal guardian */
+  @Equals(true, { message: 'Please confirm that you are the parent or legal guardian' }) confirmGuardian!: boolean;
 }
 
 @Roles(Role.PARENT)
@@ -118,8 +120,8 @@ class ParentsController {
     if (student.parentId) throw new ConflictException('That student is already linked to another parent account');
     const request = await this.prisma.parentLinkRequest.upsert({
       where: { parentId_studentId: { parentId: u.id, studentId: student.id } },
-      update: { status: 'PENDING' },
-      create: { parentId: u.id, studentId: student.id },
+      update: { status: 'PENDING', guardianConfirmedAt: new Date() },
+      create: { parentId: u.id, studentId: student.id, guardianConfirmedAt: new Date() },
       select: { id: true },
     });
     return { id: request.id, studentName: student.name, status: 'PENDING' as const };
@@ -162,7 +164,7 @@ class ParentRequestsController {
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: u.id }, select: { parentId: true } });
     if (me.parentId) throw new ConflictException('You are already linked to a parent');
     await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: u.id }, data: { parentId: req.parentId } }),
+      this.prisma.user.update({ where: { id: u.id }, data: { parentId: req.parentId, guardianConsentAt: req.guardianConfirmedAt ?? new Date() } }),
       this.prisma.parentLinkRequest.deleteMany({ where: { studentId: u.id } }),
     ]);
     return { ok: true };

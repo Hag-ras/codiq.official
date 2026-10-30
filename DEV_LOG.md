@@ -108,3 +108,8 @@ The Fawry option is hidden at checkout (shown only when `NEXT_PUBLIC_ENABLE_FAWR
 
 ## Not built (still on the list in CLAUDE.md)
 Redis/BullMQ, a real email provider (password-reset mails only log to the console), scheduled renewal reminders, queued webhooks, monthly card auto-charge.
+
+## 16. Mobile app (2026-10-30)
+- New `mobile/` folder: Expo SDK 58 + Expo Router app for Android and iOS covering every role on the website (visitor, student, parent, instructor, assistant, admin). See `mobile/README.md`.
+- Backend (backward compatible): `X-Client: mobile` makes auth endpoints also return tokens in the body; refresh/logout accept the refresh token in the body; the support socket accepts `auth.token`; `GOOGLE_CLIENT_ID` can list several client IDs. The website is unchanged.
+- Checked: `tsc --noEmit`, Android bundle export, web preview against the running API (login, student home, sessions, session page, admin overview, analytics, session editor), socket login with a bearer token. Not tested on a device or on iOS.

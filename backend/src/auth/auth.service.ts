@@ -10,6 +10,9 @@ import { resetPasswordMail, welcomeMail } from '../common/mail-templates';
 import { avatarSrc } from '../common/avatar';
 import { GoogleDto, LoginDto, RegisterDto } from './dto';
 
+/** Bump when the Terms or Privacy Policy change in a way users must accept again. Shown on the legal pages too. */
+export const TERMS_VERSION = '2026-10-30';
+
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 @Injectable()
@@ -33,6 +36,8 @@ export class AuthService {
         role: isParent ? Role.PARENT : Role.STUDENT,
         track: isParent ? null : dto.track,
         passwordHash: await argon2.hash(dto.password),
+        termsAcceptedAt: new Date(),
+        termsVersion: TERMS_VERSION,
       },
     });
     void this.mail.sendTemplate(user.email, welcomeMail(user.name, `${this.config.get('FRONTEND_URL')}/dashboard`));
@@ -54,7 +59,7 @@ export class AuthService {
     if (!clientId) throw new ServiceUnavailableException('Google sign-in is not configured yet');
     let payload;
     try {
-      const ticket = await new OAuth2Client(clientId).verifyIdToken({ idToken: dto.credential, audience: clientId });
+      const ticket = await new OAuth2Client().verifyIdToken({ idToken: dto.credential, audience: clientId.split(',').map((c) => c.trim()).filter(Boolean) });
       payload = ticket.getPayload();
     } catch {
       throw new UnauthorizedException('Google sign-in failed. Please try again');
@@ -69,6 +74,7 @@ export class AuthService {
       return { needsProfile: false as const, ...(await this.issue(user)) };
     }
     if (!dto.accountType) return { needsProfile: true as const, name: payload.name ?? '', email };
+    if (dto.acceptTerms !== true) throw new BadRequestException('Please accept the Terms and Privacy Policy to create an account');
 
     const isParent = dto.accountType === 'PARENT';
     user = await this.prisma.user.create({
@@ -81,6 +87,8 @@ export class AuthService {
         track: isParent ? null : dto.track,
         // Google-only accounts get an unusable random password; they can set one via "Forgot password"
         passwordHash: await argon2.hash(randomBytes(32).toString('hex')),
+        termsAcceptedAt: new Date(),
+        termsVersion: TERMS_VERSION,
       },
     });
     void this.mail.sendTemplate(user.email, welcomeMail(user.name, `${this.config.get('FRONTEND_URL')}/dashboard`));

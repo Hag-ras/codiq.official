@@ -24,6 +24,8 @@ export interface SessionSummary {
 }
 
 export interface SessionDetail extends SessionSummary {
+  /** Seconds into the recording where the student stopped last time */
+  resumeAt: number;
   description: string | null;
   package: { id: string; name: string; track: Track };
   instructor: { id: string; name: string } | null;
@@ -72,6 +74,7 @@ export interface CatalogPackage extends Package { enrolled: boolean }
 export interface Profile {
   id: string; name: string; email: string; phone: string | null; role: Role; track: Track | null;
   avatar: string | null; createdAt: string; hasGoogle: boolean;
+  emailNotifications: boolean; termsAcceptedAt: string | null; guardianConsentAt: string | null;
 }
 
 export interface AdminUser {

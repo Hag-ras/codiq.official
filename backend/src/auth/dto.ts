@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsIn, IsOptional, IsString, Matches, MinLength, ValidateIf } from 'class-validator';
+import { Equals, IsEmail, IsEnum, IsIn, IsOptional, IsString, Matches, MinLength, ValidateIf } from 'class-validator';
 import { Track } from '@prisma/client';
 
 export const EG_MOBILE = /^01[0125]\d{8}$/;
@@ -10,6 +10,8 @@ export class RegisterDto {
   @IsOptional() @Matches(EG_MOBILE, { message: 'Enter an Egyptian mobile number like 01012345678' }) phone?: string;
   @IsIn(['STUDENT', 'PARENT']) accountType!: 'STUDENT' | 'PARENT';
   @ValidateIf((o) => o.accountType === 'STUDENT') @IsEnum(Track) track?: Track;
+  /** Must be true: the Terms and Privacy Policy were accepted (for under-18 students, with a parent's permission) */
+  @Equals(true, { message: 'Please accept the Terms and Privacy Policy to create an account' }) acceptTerms!: boolean;
 }
 
 export class LoginDto {
@@ -32,4 +34,6 @@ export class GoogleDto {
   /** Only needed the first time, when the account is created */
   @IsOptional() @IsIn(['STUDENT', 'PARENT']) accountType?: 'STUDENT' | 'PARENT';
   @ValidateIf((o) => o.accountType === 'STUDENT') @IsEnum(Track) track?: Track;
+  /** Needed only when the account is created */
+  @IsOptional() acceptTerms?: boolean;
 }

@@ -12,7 +12,7 @@ type Tab = 'video' | 'materials' | 'assignment' | 'quiz';
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: s, error } = useQuery({ queryKey: ['session', id], queryFn: () => api<SessionDetail>(`/sessions/${id}`) });
+  const { data: s, error } = useQuery({ queryKey: ['session', id], queryFn: () => api<SessionDetail>(`/sessions/${id}`), staleTime: 0, refetchOnMount: 'always' });
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => api<{ role: string }>('/auth/me') });
   const [tab, setTab] = useState<Tab>('video');
   const isStudent = me?.role === 'STUDENT';
@@ -35,6 +35,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         {s.type === 'LIVE' ? `Live · ${fmtDate(s.startsAt, true)}` : 'Recorded'} · {s.durationMin} min{s.instructor ? ` · ${s.instructor.name}` : ''}
       </p>
 
+      {(me?.role === 'ADMIN' || me?.role === 'INSTRUCTOR') && (
+        <Link href={me.role === 'ADMIN' ? `/dashboard/admin/sessions/${s.id}/edit` : `/dashboard/teach/sessions/${s.id}/edit`} className="mt-3 mr-2 inline-flex min-h-10 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">Edit session content</Link>
+      )}
+      {s.type === 'LIVE' && ['ADMIN', 'ASSISTANT', 'INSTRUCTOR'].includes(me?.role ?? '') && (
+        <Link href={`/dashboard/sessions/${s.id}/report`} className="mt-3 inline-flex min-h-10 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">Attendance &amp; engagement report</Link>
+      )}
+
       <div className="mt-6 mb-5 flex gap-1 overflow-x-auto border-b border-line">
         {tabs.map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
@@ -44,7 +51,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         ))}
       </div>
 
-      {tab === 'video' && <VideoTab s={s} isStudent={isStudent} />}
+      {tab === 'video' && <VideoTab s={s} isStudent={isStudent} canMonitor={me?.role === 'ADMIN'} />}
       {tab === 'materials' && (s.materials.length ? (
         <ul className="overflow-hidden rounded-(--radius-card) border border-line bg-white">
           {s.materials.map((m) => (
@@ -61,7 +68,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   );
 }
 
-function VideoTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
+function VideoTab({ s, isStudent, canMonitor }: { s: SessionDetail; isStudent: boolean; canMonitor: boolean }) {
   const { data } = useQuery({ queryKey: ['recording', s.id], queryFn: () => api<{ url?: string; youtubeId?: string }>(`/sessions/${s.id}/recording`), enabled: s.hasRecording, staleTime: 50 * 60_000 });
   const lastSent = useRef(0);
 
@@ -72,7 +79,12 @@ function VideoTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
         <p className="text-[15px] text-[#4a4945]">
           {s.isLiveNow ? 'The class is running. Join with camera and mic, or just watch and chat.' : 'The classroom opens 15 minutes before start. The recording will appear here after class.'}
         </p>
-        {s.isLiveNow && <ButtonLink href={`/live/${s.id}`} variant="accent">Join class</ButtonLink>}
+        {s.isLiveNow && (
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href={`/live/${s.id}`} variant="accent">Join class</ButtonLink>
+            {canMonitor && <ButtonLink href={`/live/${s.id}?monitor=1`} variant="secondary">Monitor quietly</ButtonLink>}
+          </div>
+        )}
       </Card>
     );
 
@@ -81,16 +93,17 @@ function VideoTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
     const t = Math.floor(el.currentTime);
     if (!completed && t - lastSent.current < 15) return;
     lastSent.current = t;
-    api(`/sessions/${s.id}/progress`, { method: 'POST', json: { watchedSeconds: t, completed: completed || el.currentTime / el.duration > 0.9 } }).catch(() => null);
+    api(`/sessions/${s.id}/progress`, { method: 'POST', json: { watchedSeconds: t, positionSeconds: completed ? 0 : t, completed: completed || el.currentTime / el.duration > 0.9 } }).catch(() => null);
   };
 
   return (
     <div className="overflow-hidden rounded-(--radius-card) bg-night">
       {data?.youtubeId ? (
-        <YouTubePlayer videoId={data.youtubeId} onProgress={(t, done) => { api(`/sessions/${s.id}/progress`, { method: 'POST', json: { watchedSeconds: t, completed: done } }).catch(() => null); }} />
+        <YouTubePlayer videoId={data.youtubeId} startAt={isStudent ? s.resumeAt : 0} onProgress={(t, done, ended) => { api(`/sessions/${s.id}/progress`, { method: 'POST', json: { watchedSeconds: t, positionSeconds: ended ? 0 : t, completed: done } }).catch(() => null); }} />
       ) : data?.url ? (
         <video src={data.url} controls playsInline controlsList="nodownload" className="aspect-video w-full"
-          onTimeUpdate={(e) => report(e.currentTarget)} onEnded={(e) => report(e.currentTarget, true)} />
+          onLoadedMetadata={(e) => { const v = e.currentTarget; if (isStudent && s.resumeAt > 5 && s.resumeAt < v.duration - 10) v.currentTime = s.resumeAt; }}
+          onTimeUpdate={(e) => report(e.currentTarget)} onPause={(e) => { if (!e.currentTarget.ended) report(e.currentTarget); }} onEnded={(e) => report(e.currentTarget, true)} />
       ) : (
         <div className="aspect-video w-full animate-pulse" />
       )}

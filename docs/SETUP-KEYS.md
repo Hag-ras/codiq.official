@@ -130,6 +130,11 @@ If you skip Fawry, leave the three values empty and the option stays unusable; h
 ## 7. Videos from YouTube (for now)
 Upload each lesson to YouTube as **Unlisted** (not Private, because private videos will not play for students). In the admin, create or edit a recorded session and paste the link into **YouTube link**. Anyone who has the link can watch it, so it is weaker protection than the paid-course storage in section 3. Move to Cloudflare R2 when you need to protect paid content.
 
+## 8. Legal pages, reminders and certificates (no keys needed)
+- **Terms and Privacy**: `/terms` and `/privacy` (English and Arabic). Set `NEXT_PUBLIC_CONTACT_EMAIL` in `frontend/.env.local` to show a contact address. These are a good first draft, not legal advice: have an Egyptian lawyer review them (especially the refund rule in Terms section 6 and the retention period) before launch. When you change them in a way users must accept again, bump the date in `backend/src/auth/auth.service.ts` (`TERMS_VERSION`) and `frontend/src/lib/legal.ts` (`LEGAL_VERSION`).
+- **Scheduled emails** (class reminders 24 h and 1 h before, renewal reminders 3 days and 1 day before and when a plan ends, parent weekly summary on Fridays from 10:00 Cairo time) run on a timer inside the API and need `RESEND_API_KEY` to actually send. `JOBS_ENABLED=false` turns the timer off. Each email is logged in `NotificationLog`, so nothing is sent twice even with several API servers.
+- **Certificates** are PDFs drawn by the API (fonts in `backend/assets/fonts`, copy that folder when you deploy). Anyone can check a certificate at `/verify/<number>`.
+
 ## Admin access rules
 - Every URL with an `admin` path segment is locked to admins by a global guard (`AdminAreaGuard`), even if a route forgets `@Roles` or is marked public. Roles are read from the database, not the token, so a demoted admin loses access immediately.
 - Admin pages check again on the server; non-admins are redirected.

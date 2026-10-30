@@ -42,9 +42,11 @@ export async function SiteFooter() {
           <Logo dark />
           <span className="font-mono text-sm text-[#b4b2ac]">{t('Think it. Code it.')}</span>
         </div>
-        <div className="flex gap-6 text-sm text-[#b4b2ac]">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#b4b2ac]">
           <Link href="/pricing" className="hover:text-day">{t('Packages')}</Link>
           <Link href="/login" className="hover:text-day">{t('Log in')}</Link>
+          <Link href="/terms" className="hover:text-day">{t('Terms')}</Link>
+          <Link href="/privacy" className="hover:text-day">{t('Privacy')}</Link>
           <span>© {new Date().getFullYear()} Codiq</span>
         </div>
       </div>

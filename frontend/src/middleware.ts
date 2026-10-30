@@ -7,6 +7,7 @@ const ALL: Role[] = ['STUDENT', 'PARENT', 'INSTRUCTOR', 'ASSISTANT', 'ADMIN'];
 // Most specific prefix first. The API enforces the same rules; this is for UX.
 const RULES: [string, Role[]][] = [
   ['/dashboard/admin', ['ADMIN']],
+  ['/dashboard/teach', ['INSTRUCTOR', 'ADMIN']],
   ['/dashboard/grading', ['INSTRUCTOR', 'ASSISTANT', 'ADMIN']],
   ['/dashboard/children', ['PARENT']],
   ['/dashboard/support', ['STUDENT', 'PARENT', 'INSTRUCTOR']],

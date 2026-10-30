@@ -16,10 +16,12 @@ export function Logo({ size = 22, dark = false }: { size?: number; dark?: boolea
   );
 }
 
-type Variant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'accent' | 'onDark' | 'secondary' | 'ghost' | 'danger';
 const variants: Record<Variant, string> = {
   primary: 'btn-shine bg-ink text-paper hover:opacity-90',
-  accent: 'bg-(--accent) text-white hover:brightness-110',
+  accent: 'bg-(--accent) text-(--on-accent) hover:brightness-110',
+  /** For buttons on the always-dark night cards, in both themes */
+  onDark: 'bg-[#f5f3ee] text-[#1c1d21] hover:brightness-95',
   secondary: 'bg-white text-ink border border-line hover:border-ink',
   ghost: 'text-ink hover:bg-black/5',
   danger: 'bg-white text-danger border border-danger/30 hover:bg-danger/5',

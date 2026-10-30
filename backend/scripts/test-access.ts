@@ -36,7 +36,10 @@ const check = (label: string, ok: boolean, detail = '') => { console.log(`  ${ok
     for (const r of ADMIN_ONLY) {
       const s = await call(cookie, r);
       const expected = cookie ? 403 : 401;
-      if (s !== expected) bad.push(`${r[0]} ${r[1]} -> ${s}`);
+      // Instructors may edit the content of their OWN sessions now: for a session that doesn't exist that is a 404, never a 2xx
+      // (editing someone else's session is covered by test:features)
+      const instructorOwnRoute = name === 'instructor' && r[0] === 'PATCH' && r[1] === '/sessions/x';
+      if (instructorOwnRoute ? ![403, 404].includes(s) : s !== expected) bad.push(`${r[0]} ${r[1]} -> ${s}`);
     }
     console.log(`${name}`);
     check(`blocked on all ${ADMIN_ONLY.length} admin routes`, !bad.length, bad.join('; '));

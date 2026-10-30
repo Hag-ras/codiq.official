@@ -12,47 +12,53 @@ function setAuthCookies(res: Response, t: { accessToken: string; refreshToken: s
   res.cookie('refresh_token', t.refreshToken, { ...base(), maxAge: 30 * 86_400_000 });
 }
 
+/** The mobile app has no cookie jar it can rely on: it sends `X-Client: mobile` and keeps the tokens itself. */
+const isMobile = (req: Request) => req.headers['x-client'] === 'mobile';
+const mobileBody = (r: { user: unknown; accessToken: string; refreshToken: string }) => ({ user: r.user, accessToken: r.accessToken, refreshToken: r.refreshToken });
+const refreshFrom = (req: Request): string | undefined =>
+  req.cookies?.refresh_token ?? (isMobile(req) && typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined);
+
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
 
   @Public() @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('register')
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+  async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const r = await this.auth.register(dto);
     setAuthCookies(res, r);
-    return r.user;
+    return isMobile(req) ? mobileBody(r) : r.user;
   }
 
   @Public() @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login') @HttpCode(200)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const r = await this.auth.login(dto);
     setAuthCookies(res, r);
-    return r.user;
+    return isMobile(req) ? mobileBody(r) : r.user;
   }
 
   @Public() @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('google') @HttpCode(200)
-  async google(@Body() dto: GoogleDto, @Res({ passthrough: true }) res: Response) {
+  async google(@Body() dto: GoogleDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const r = await this.auth.google(dto);
     if (r.needsProfile) return r;
     setAuthCookies(res, r);
-    return { needsProfile: false, user: r.user };
+    return isMobile(req) ? { needsProfile: false, ...mobileBody(r) } : { needsProfile: false, user: r.user };
   }
 
   @Public()
   @Post('refresh') @HttpCode(200)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const r = await this.auth.refresh(req.cookies?.refresh_token);
+    const r = await this.auth.refresh(refreshFrom(req));
     setAuthCookies(res, r);
-    return r.user;
+    return isMobile(req) ? mobileBody(r) : r.user;
   }
 
   @Public()
   @Post('logout') @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.auth.logout(req.cookies?.refresh_token);
+    await this.auth.logout(refreshFrom(req));
     res.clearCookie('access_token', base());
     res.clearCookie('refresh_token', base());
   }

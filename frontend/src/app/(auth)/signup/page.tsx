@@ -19,6 +19,7 @@ const schema = z
     phone: z.string().regex(/^01[0125]\d{8}$/, 'Use an Egyptian mobile like 01012345678').or(z.literal('')),
     password: z.string().min(8, 'At least 8 characters'),
     track: z.enum(['KIDS', 'SCHOOL', 'COLLEGE']).optional(),
+    acceptTerms: z.boolean().refine((v) => v === true, 'Please accept the Terms and Privacy Policy'),
   })
   .refine((v) => v.accountType === 'PARENT' || !!v.track, { path: ['track'], message: 'Choose a track' });
 type Values = z.infer<typeof schema>;
@@ -32,10 +33,11 @@ function SignupForm() {
   const [error, setError] = useState('');
   const { register, handleSubmit, watch, setValue, formState } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { accountType: 'STUDENT', phone: '', track: 'KIDS' },
+    defaultValues: { accountType: 'STUDENT', phone: '', track: 'KIDS', acceptTerms: false },
   });
   const type = watch('accountType');
   const track = watch('track');
+  const accepted = watch('acceptTerms');
 
   const onSubmit = handleSubmit(async ({ phone, ...v }) => {
     setError('');
@@ -82,11 +84,21 @@ function SignupForm() {
           </Field>
         )}
         {type === 'PARENT' && <p className="text-sm text-muted">{t('After signing up, link your children from your dashboard. They need their own student account first.')}</p>}
+        <div>
+          <label className="flex items-start gap-2.5 text-sm leading-relaxed">
+            <input type="checkbox" className="mt-1 size-4 shrink-0 accent-(--color-clay)" {...register('acceptTerms')} />
+            <span>
+              {t('I accept the')} <Link href="/terms" target="_blank" className="font-semibold underline">{t('Terms of Use')}</Link> {t('and')} <Link href="/privacy" target="_blank" className="font-semibold underline">{t('Privacy Policy')}</Link>.{' '}
+              {type === 'STUDENT' ? t("If I'm under 18, my parent or guardian knows about this account and agrees.") : t("I confirm that I'm an adult and responsible for any child I link to my account.")}
+            </span>
+          </label>
+          {formState.errors.acceptTerms && <p className="mt-1 text-sm text-danger">{t(formState.errors.acceptTerms.message ?? '')}</p>}
+        </div>
         {error && <p className="rounded-lg bg-[#f7e1df] px-3 py-2 text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={formState.isSubmitting}>{formState.isSubmitting ? t('Creating…') : t('Create account')}</Button>
       </form>
       <OrDivider />
-      <GoogleButton text="signup_with" next={next} extra={{ accountType: type, track: type === 'STUDENT' ? track : undefined }} />
+      <GoogleButton text="signup_with" next={next} extra={{ accountType: type, track: type === 'STUDENT' ? track : undefined, acceptTerms: accepted }} />
     </>
   );
 }

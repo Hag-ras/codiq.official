@@ -13,7 +13,8 @@
     "check:env": "ts-node scripts/check-env.ts",
     "test:access": "ts-node scripts/test-access.ts",
     "test:guard": "ts-node scripts/test-admin-guard.ts",
-    "test:flow": "ts-node scripts/test-flow.ts"
+    "test:flow": "ts-node scripts/test-flow.ts",
+    "test:features": "ts-node scripts/test-features.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -32,6 +33,7 @@
     "@nestjs/throttler": "^6.3.0",
     "@nestjs/websockets": "^11.2.8",
     "@prisma/client": "^6.1.0",
+    "@types/pdfkit": "^0.17.7",
     "argon2": "^0.41.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -43,6 +45,7 @@
     "livekit-server-sdk": "^2.9.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdfkit": "^0.20.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.4"

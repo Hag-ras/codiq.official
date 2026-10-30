@@ -81,16 +81,17 @@ function LinkChild({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
+  const [guardian, setGuardian] = useState(false);
 
   return (
     <Card className="mb-6">
       <p className="mb-4 text-[15px] text-[#4a4945]">{t('Your child needs their own Codiq student account first. Enter the email they signed up with. They will see your request in their dashboard, and you can follow their progress once they accept.')}</p>
       <form
-        className="flex flex-col gap-4 sm:flex-row sm:items-end"
+        className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end"
         onSubmit={async (e) => {
           e.preventDefault(); setError(''); setSent('');
           try {
-            const r = await api<{ studentName: string }>('/parents/children', { method: 'POST', json: { email } });
+            const r = await api<{ studentName: string }>('/parents/children', { method: 'POST', json: { email, confirmGuardian: guardian } });
             setSent(t('Request sent to {name}. They need to accept it from their dashboard.', { name: r.studentName }));
             setEmail('');
             await qc.invalidateQueries({ queryKey: ['link-requests'] });
@@ -100,7 +101,11 @@ function LinkChild({ onDone }: { onDone: () => void }) {
         }}
       >
         <div className="flex-1"><Field label={t("Child's email")}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field></div>
-        <div className="flex gap-2"><Button type="submit">{t('Send request')}</Button><Button type="button" variant="ghost" onClick={onDone}>{t('Close')}</Button></div>
+        <div className="flex gap-2"><Button type="submit" disabled={!guardian}>{t('Send request')}</Button><Button type="button" variant="ghost" onClick={onDone}>{t('Close')}</Button></div>
+        <label className="flex basis-full items-start gap-2.5 text-sm leading-relaxed sm:order-last">
+          <input type="checkbox" className="mt-1 size-4 shrink-0 accent-(--color-clay)" checked={guardian} onChange={(e) => setGuardian(e.target.checked)} />
+          <span>{t("I'm this child's parent or legal guardian, and I agree to the")} <Link href="/privacy" target="_blank" className="font-semibold underline">{t('Privacy Policy')}</Link>.</span>
+        </label>
       </form>
       {error && <p role="alert" className="mt-3 rounded-lg bg-[#f7e1df] px-3 py-2 text-sm text-danger">{error}</p>}
       {sent && <p role="status" className="mt-3 rounded-lg bg-[#e1eee6] px-3 py-2 text-sm text-[#2f6449]">{sent}</p>}

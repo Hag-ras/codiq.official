@@ -4,6 +4,7 @@ import { Role, SubmissionStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { AccessService, PrismaService, StorageService } from '../common/infra.module';
 import { AuthUser, CurrentUser, Roles } from '../common/decorators';
+import { NotificationsService } from '../notifications/notifications.module';
 
 class SubmitDto {
   @IsOptional() @IsString() text?: string;
@@ -26,7 +27,7 @@ class PresignDto {
 
 @Controller()
 class LearningController {
-  constructor(private prisma: PrismaService, private access: AccessService, private storage: StorageService) {}
+  constructor(private prisma: PrismaService, private access: AccessService, private storage: StorageService, private notify: NotificationsService) {}
 
   /** Browser uploads go straight to storage with a short-lived signed URL. */
   @Post('uploads/presign') @HttpCode(200)
@@ -95,7 +96,9 @@ class LearningController {
     if (!s) throw new NotFoundException();
     await this.assertStaffFor(u, s.assignment.sessionId);
     if (dto.score > s.assignment.maxScore) throw new BadRequestException(`Max score is ${s.assignment.maxScore}`);
-    return this.prisma.submission.update({ where: { id }, data: { ...dto, status: SubmissionStatus.GRADED, gradedAt: new Date() } });
+    const graded = await this.prisma.submission.update({ where: { id }, data: { ...dto, status: SubmissionStatus.GRADED, gradedAt: new Date() } });
+    void this.notify.assignmentGraded(graded.id).catch(() => null);
+    return graded;
   }
 
   @Roles(Role.STUDENT)
@@ -107,7 +110,8 @@ class LearningController {
     if (dto.answers.length !== quiz.questions.length) throw new BadRequestException('Answer every question');
     const right = quiz.questions.filter((q, i) => q.correctIndex === dto.answers[i]).length;
     const score = Math.round((right / quiz.questions.length) * 100);
-    await this.prisma.quizAttempt.create({ data: { quizId: quiz.id, studentId: u.id, answers: dto.answers, score } });
+    const made = await this.prisma.quizAttempt.create({ data: { quizId: quiz.id, studentId: u.id, answers: dto.answers, score } });
+    void this.notify.quizResult(made.id).catch(() => null);
     return { score, passed: score >= quiz.passScore, correct: quiz.questions.map((q) => q.correctIndex) };
   }
 

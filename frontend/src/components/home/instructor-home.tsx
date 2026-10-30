@@ -23,7 +23,7 @@ export function InstructorHome({ me }: { me: Me }) {
             <div className="mt-2 text-lg font-bold">{s.title}</div>
             <div className="text-sm text-[#b4b2ac]">{s.packageName}</div>
           </div>
-          <ButtonLink href={`/live/${s.id}`} variant="accent">Start class</ButtonLink>
+          <ButtonLink href={`/live/${s.id}`} variant="onDark">Start class</ButtonLink>
         </div>
       ))}
       {isLoading ? null : !sessions.length ? (

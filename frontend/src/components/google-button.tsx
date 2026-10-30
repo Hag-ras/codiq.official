@@ -40,7 +40,7 @@ export function GoogleButton({
   next = '/dashboard', extra, onNeedsProfile, text = 'continue_with',
 }: {
   next?: string;
-  extra?: { accountType?: 'STUDENT' | 'PARENT'; track?: string };
+  extra?: { accountType?: 'STUDENT' | 'PARENT'; track?: string; acceptTerms?: boolean };
   onNeedsProfile?: () => void;
   text?: 'signin_with' | 'signup_with' | 'continue_with';
 }) {

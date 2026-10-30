@@ -85,6 +85,13 @@ model User {
   resetTokenHash    String?
   resetTokenExpires DateTime?
   createdAt         DateTime  @default(now())
+  /// When they accepted the Terms and Privacy Policy (and which version)
+  termsAcceptedAt   DateTime?
+  termsVersion      String?
+  /// Set when a parent/guardian linked to this student account confirmed they are the legal guardian
+  guardianConsentAt DateTime?
+  /// Class reminders, renewal reminders, grade and progress emails. Users can turn this off in their profile.
+  emailNotifications Boolean  @default(true)
 
   enrollments            Enrollment[]
   paymentsMade           Payment[]           @relation("Payer")
@@ -92,10 +99,12 @@ model User {
   submissions            Submission[]
   quizAttempts           QuizAttempt[]
   progress               SessionProgress[]
+  liveAttendance         LiveAttendance[]
   taught                 Session[]           @relation("Instructor")
   supportThreads         SupportThread[]
   parentRequestsSent     ParentLinkRequest[] @relation("LinkParent")
   parentRequestsReceived ParentLinkRequest[] @relation("LinkStudent")
+  certificates           Certificate[]
 }
 
 /// Prices are stored in piasters (1 EGP = 100).
@@ -114,6 +123,7 @@ model Package {
   enrollments         Enrollment[]
   payments            Payment[]
   coupons             Coupon[]
+  certificates        Certificate[]
 }
 
 model Session {
@@ -132,12 +142,15 @@ model Session {
   videoKey     String?
   /// YouTube video id (unlisted video embedded in the player). Used instead of an uploaded file.
   youtubeId    String?
+  /// Set when the host ends a live class: nobody but a host can come back in
+  endedAt      DateTime?
   createdAt    DateTime    @default(now())
 
   materials  Material[]
   assignment Assignment?
   quiz       Quiz?
   progress   SessionProgress[]
+  attendance LiveAttendance[]
 
   @@unique([packageId, order])
 }
@@ -261,10 +274,40 @@ model SessionProgress {
   sessionId      String
   session        Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   watchedSeconds Int     @default(0)
+  /// Where the video was last left, so it resumes from there
+  positionSeconds Int    @default(0)
   completed      Boolean @default(false)
   attendedLive   Boolean @default(false)
+  /// Last time they worked on this session (used for streaks and the weekly summary)
+  updatedAt      DateTime @default(now()) @updatedAt
 
   @@unique([userId, sessionId])
+}
+
+/// Who was in a live class, for how long, and how engaged they were. Filled by client heartbeats every ~30s.
+model LiveAttendance {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstJoinAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  /// Times they came back after leaving (1 = joined once)
+  joins           Int      @default(1)
+  attendedSeconds Int      @default(0)
+  /// Seconds the class tab was visible and focused
+  activeSeconds   Int      @default(0)
+  camSeconds      Int      @default(0)
+  micSeconds      Int      @default(0)
+  /// Chat messages, raised hands, board strokes and code runs
+  interactions    Int      @default(0)
+  /// Promoted by the host: gets host controls in this class
+  cohost          Boolean  @default(false)
+  /// Removed by the host: cannot rejoin this class
+  removedAt       DateTime?
+
+  @@unique([sessionId, userId])
 }
 
 /// Discount codes. PERCENT value = 1..100, FIXED value = piasters off.
@@ -341,7 +384,33 @@ model ParentLinkRequest {
   student   User       @relation("LinkStudent", fields: [studentId], references: [id], onDelete: Cascade)
   status    LinkStatus @default(PENDING)
   createdAt DateTime   @default(now())
+  /// The parent ticked "I am this student's parent or legal guardian"
+  guardianConfirmedAt DateTime?
 
   @@unique([parentId, studentId])
   @@index([studentId, status])
+}
+
+/// One row per email already sent, so the scheduled jobs never send the same reminder twice (even with several API servers).
+model NotificationLog {
+  id     String   @id @default(cuid())
+  kind   String
+  key    String
+  sentAt DateTime @default(now())
+
+  @@unique([kind, key])
+  @@index([sentAt])
+}
+
+/// Issued when a student finishes every session in a package. The serial is printed on the PDF so it can be checked online.
+model Certificate {
+  id        String   @id @default(cuid())
+  serial    String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId String
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  issuedAt  DateTime @default(now())
+
+  @@unique([userId, packageId])
 }

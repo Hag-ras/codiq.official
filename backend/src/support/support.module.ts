@@ -45,7 +45,8 @@ export class SupportGateway implements OnGatewayInit, OnModuleDestroy {
   afterInit(server: Server) {
     server.use(async (socket, next) => {
       try {
-        const token = /(?:^|;\s*)access_token=([^;]+)/.exec(socket.handshake.headers.cookie ?? '')?.[1];
+        const authToken = socket.handshake.auth?.token;
+        const token = (typeof authToken === 'string' && authToken) || /(?:^|;\s*)access_token=([^;]+)/.exec(socket.handshake.headers.cookie ?? '')?.[1];
         const guestKey = typeof socket.handshake.auth?.guestKey === 'string' ? socket.handshake.auth.guestKey : null;
         if (token) {
           try {

@@ -9,15 +9,16 @@ import { useT } from './i18n-provider';
 import type { Me, Role } from '@/lib/types';
 
 const NAV: Record<Role, [href: string, label: string][]> = {
-  STUDENT: [['/dashboard', 'Home'], ['/dashboard/courses', 'Courses'], ['/dashboard/sessions', 'Sessions'], ['/dashboard/billing', 'Billing'], ['/dashboard/support', 'Support chat'], ['/dashboard/profile', 'Profile']],
-  PARENT: [['/dashboard', 'Children'], ['/dashboard/catalog', 'Packages'], ['/dashboard/billing', 'Billing'], ['/dashboard/support', 'Support chat'], ['/dashboard/profile', 'Profile']],
-  INSTRUCTOR: [['/dashboard', 'Teaching'], ['/dashboard/grading', 'Grading'], ['/dashboard/support', 'Support chat'], ['/dashboard/profile', 'Profile']],
-  ASSISTANT: [['/dashboard', 'Sessions'], ['/dashboard/grading', 'Grading'], ['/dashboard/inbox', 'Support inbox'], ['/dashboard/profile', 'Profile']],
+  STUDENT: [['/dashboard', 'Home'], ['/dashboard/courses', 'Courses'], ['/dashboard/sessions', 'Sessions'], ['/dashboard/schedule', 'Schedule'], ['/dashboard/billing', 'Billing'], ['/dashboard/support', 'Support chat'], ['/dashboard/profile', 'Profile']],
+  PARENT: [['/dashboard', 'Children'], ['/dashboard/schedule', 'Schedule'], ['/dashboard/catalog', 'Packages'], ['/dashboard/billing', 'Billing'], ['/dashboard/support', 'Support chat'], ['/dashboard/profile', 'Profile']],
+  INSTRUCTOR: [['/dashboard', 'Teaching'], ['/dashboard/sessions', 'My sessions'], ['/dashboard/schedule', 'Schedule'], ['/dashboard/grading', 'Grading'], ['/dashboard/support', 'Support chat'], ['/dashboard/profile', 'Profile']],
+  ASSISTANT: [['/dashboard', 'Sessions'], ['/dashboard/schedule', 'Schedule'], ['/dashboard/grading', 'Grading'], ['/dashboard/inbox', 'Support inbox'], ['/dashboard/profile', 'Profile']],
   ADMIN: [
     ['/dashboard/admin', 'Overview'],
     ['/dashboard/admin/analytics', 'Analytics'],
     ['/dashboard/admin/packages', 'Courses'],
     ['/dashboard/admin/sessions', 'Sessions'],
+    ['/dashboard/schedule', 'Schedule'],
     ['/dashboard/admin/payments', 'Payments'],
     ['/dashboard/admin/coupons', 'Coupons'],
     ['/dashboard/admin/assignments', 'Assignments'],

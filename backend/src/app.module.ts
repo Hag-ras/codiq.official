@@ -16,6 +16,10 @@ import { SupportModule } from './support/support.module';
 import { AdminModule } from './admin/admin.module';
 import { AccountModule } from './account/account.module';
 import { CouponsModule } from './coupons/coupons.module';
+import { ProgressModule } from './progress/progress.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { CertificatesModule } from './certificates/certificates.module';
+import { ScheduleModule } from './schedule/schedule.module';
 import { AdminAreaGuard } from './common/admin-area.guard';
 
 @Module({
@@ -35,6 +39,10 @@ import { AdminAreaGuard } from './common/admin-area.guard';
     AdminModule,
     AccountModule,
     CouponsModule,
+    ProgressModule,
+    NotificationsModule,
+    CertificatesModule,
+    ScheduleModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

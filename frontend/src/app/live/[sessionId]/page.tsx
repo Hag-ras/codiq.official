@@ -1,9 +1,10 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { LiveKitRoom, RoomAudioRenderer, VideoConference, useLocalParticipant, useParticipants } from '@livekit/components-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Classroom } from '@/components/live/classroom';
+import { LiveKitRoom, RoomAudioRenderer, useLocalParticipant, useParticipantInfo, useParticipants } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { api } from '@/lib/api';
 import { Logo } from '@/components/ui';
@@ -12,10 +13,15 @@ import type { SessionDetail } from '@/lib/types';
 export default function LivePage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
   const router = useRouter();
+  const qc = useQueryClient();
   const { data: session } = useQuery({ queryKey: ['session', sessionId], queryFn: () => api<SessionDetail>(`/sessions/${sessionId}`) });
+  // ?monitor=1 lets admins and assistants watch without being seen or heard.
+  const [monitor, setMonitor] = useState<boolean | null>(null);
+  useEffect(() => { setMonitor(new URLSearchParams(window.location.search).get('monitor') === '1'); }, []);
   const { data: conn, error } = useQuery({
-    queryKey: ['live-token', sessionId],
-    queryFn: () => api<{ token: string; url: string; isHost: boolean }>(`/live/${sessionId}/token`),
+    queryKey: ['live-token', sessionId, monitor],
+    queryFn: () => api<{ token: string; url: string; isHost: boolean; monitor: boolean }>(`/live/${sessionId}/token${monitor ? '?monitor=1' : ''}`),
+    enabled: monitor !== null,
     staleTime: Infinity,
   });
 
@@ -31,8 +37,8 @@ export default function LivePage({ params }: { params: Promise<{ sessionId: stri
       {conn ? (
         <LiveKitRoom serverUrl={conn.url} token={conn.token} connect video={conn.isHost} audio={conn.isHost}
           onDisconnected={() => router.push(`/dashboard/sessions/${sessionId}`)} className="flex min-h-0 flex-1 flex-col">
-          <TopBar title={session?.title ?? 'Live class'} sessionId={sessionId} isHost={conn.isHost} />
-          <div className="min-h-0 flex-1"><VideoConference /></div>
+          <TopBar title={session?.title ?? 'Live class'} sessionId={sessionId} isHost={conn.isHost} monitor={conn.monitor} />
+          <Classroom sessionId={sessionId} isHost={conn.isHost} monitor={conn.monitor} materials={session?.materials ?? []} onMaterialAdded={() => qc.invalidateQueries({ queryKey: ['session', sessionId] })} />
           <RoomAudioRenderer />
         </LiveKitRoom>
       ) : (
@@ -42,11 +48,13 @@ export default function LivePage({ params }: { params: Promise<{ sessionId: stri
   );
 }
 
-function TopBar({ title, sessionId, isHost }: { title: string; sessionId: string; isHost: boolean }) {
+function TopBar({ title, sessionId, isHost, monitor }: { title: string; sessionId: string; isHost: boolean; monitor: boolean }) {
   const { localParticipant } = useLocalParticipant();
   const participants = useParticipants();
   const [hand, setHand] = useState(false);
   const [recording, setRecording] = useState<'idle' | 'starting' | 'on'>('idle');
+  const info = useParticipantInfo({ participant: localParticipant });
+  const cohost = (() => { try { return !!JSON.parse(info.metadata ?? '{}').cohost; } catch { return false; } })();
   const hands = participants.filter((p) => p.attributes?.hand === 'up');
 
   const toggleHand = async () => {
@@ -67,12 +75,14 @@ function TopBar({ title, sessionId, isHost }: { title: string; sessionId: string
             ✋ {hands.map((p) => p.name?.split(' ')[0]).join(', ')}
           </span>
         )}
-        {!isHost && (
+        {monitor && <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">👁 Monitoring quietly</span>}
+        {!isHost && !cohost && !monitor && (
           <button onClick={toggleHand} className="min-h-10 rounded-[10px] bg-white/10 px-4 text-sm font-semibold hover:bg-white/20">
             {hand ? 'Lower hand' : 'Raise hand'}
           </button>
         )}
-        {isHost && (
+        {(isHost || cohost) && (
+          <>
           <button disabled={recording !== 'idle'} className="min-h-10 rounded-[10px] bg-white/10 px-4 text-sm font-semibold hover:bg-white/20 disabled:opacity-60"
             onClick={async () => {
               setRecording('starting');
@@ -80,6 +90,14 @@ function TopBar({ title, sessionId, isHost }: { title: string; sessionId: string
             }}>
             {recording === 'on' ? '● Recording' : recording === 'starting' ? 'Starting…' : 'Record class'}
           </button>
+          <button className="min-h-10 rounded-[10px] bg-[#b3402a] px-4 text-sm font-semibold text-white hover:brightness-110"
+            onClick={async () => {
+              if (!confirm('End the class for everyone? Nobody but a host can come back in.')) return;
+              await api(`/live/${sessionId}/end`, { method: 'POST' }).catch((e) => alert((e as Error).message));
+            }}>
+            End class
+          </button>
+          </>
         )}
       </div>
     </div>
