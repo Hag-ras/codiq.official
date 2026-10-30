@@ -12,6 +12,8 @@ export class RegisterDto {
   @ValidateIf((o) => o.accountType === 'STUDENT') @IsEnum(Track) track?: Track;
   /** Must be true: the Terms and Privacy Policy were accepted (for under-18 students, with a parent's permission) */
   @Equals(true, { message: 'Please accept the Terms and Privacy Policy to create an account' }) acceptTerms!: boolean;
+  /** Language of the site when they signed up; our emails to them use it */
+  @IsOptional() @IsIn(['en', 'ar']) language?: 'en' | 'ar';
 }
 
 export class LoginDto {
@@ -36,4 +38,5 @@ export class GoogleDto {
   @ValidateIf((o) => o.accountType === 'STUDENT') @IsEnum(Track) track?: Track;
   /** Needed only when the account is created */
   @IsOptional() acceptTerms?: boolean;
+  @IsOptional() @IsIn(['en', 'ar']) language?: 'en' | 'ar';
 }

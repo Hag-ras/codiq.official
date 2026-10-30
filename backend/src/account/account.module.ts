@@ -1,8 +1,9 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode, Module, NotFoundException, Param, Patch, Post, Put, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { IsBoolean, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { randomBytes } from 'crypto';
 import { activeEnrollment, PrismaService, StorageService } from '../common/infra.module';
 import { avatarSrc } from '../common/avatar';
 import { AuthUser, CurrentUser, Roles } from '../common/decorators';
@@ -12,6 +13,11 @@ class UpdateProfileDto {
   @IsOptional() @IsString() @MinLength(2) name?: string;
   @IsOptional() @Matches(EG_MOBILE, { message: 'Enter an Egyptian mobile number like 01012345678' }) phone?: string;
   @IsOptional() @IsBoolean() emailNotifications?: boolean;
+  @IsOptional() @IsIn(['en', 'ar']) language?: 'en' | 'ar';
+}
+class DeleteAccountDto {
+  /** Their password; for an account that signed up with Google, their email address typed out */
+  @IsString() confirm!: string;
 }
 class ChangePasswordDto {
   @IsString() currentPassword!: string;
@@ -22,7 +28,7 @@ class AvatarDto {
   @IsString() key!: string;
 }
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const profileSelect = { id: true, name: true, email: true, phone: true, role: true, track: true, avatarKey: true, avatarUrl: true, createdAt: true, emailNotifications: true, termsAcceptedAt: true, guardianConsentAt: true };
+const profileSelect = { id: true, name: true, email: true, phone: true, role: true, track: true, avatarKey: true, avatarUrl: true, createdAt: true, language: true, emailNotifications: true, termsAcceptedAt: true, guardianConsentAt: true };
 const shape = <T extends { id: string; avatarKey: string | null; avatarUrl: string | null }>(u: T) => {
   const { avatarKey, avatarUrl, ...rest } = u;
   return { ...rest, avatar: avatarSrc({ id: u.id, avatarKey, avatarUrl }) };
@@ -42,6 +48,71 @@ class AccountController {
   @Patch('profile')
   async update(@CurrentUser() u: AuthUser, @Body() dto: UpdateProfileDto) {
     return shape(await this.prisma.user.update({ where: { id: u.id }, data: dto, select: profileSelect }));
+  }
+
+
+  /** Everything we hold about the signed-in person, as one JSON file (the "download my data" right). */
+  @Get('export')
+  async export(@CurrentUser() u: AuthUser, @Res() res: Response) {
+    const me = await this.prisma.user.findUniqueOrThrow({
+      where: { id: u.id },
+      select: {
+        id: true, email: true, name: true, phone: true, role: true, track: true, createdAt: true, language: true, emailNotifications: true, termsAcceptedAt: true, termsVersion: true, guardianConsentAt: true,
+        parent: { select: { name: true, email: true } },
+        children: { select: { name: true, email: true } },
+        enrollments: { select: { billing: true, status: true, activeUntil: true, createdAt: true, package: { select: { name: true } } } },
+        progress: { select: { watchedSeconds: true, completed: true, updatedAt: true, session: { select: { title: true } } } },
+        submissions: { select: { text: true, fileName: true, status: true, score: true, feedback: true, submittedAt: true, gradedAt: true, assignment: { select: { title: true } } } },
+        quizAttempts: { select: { score: true, createdAt: true, quiz: { select: { title: true } } } },
+        liveAttendance: { select: { firstJoinAt: true, lastSeenAt: true, attendedSeconds: true, activeSeconds: true, camSeconds: true, micSeconds: true, interactions: true, session: { select: { title: true } } } },
+        certificates: { select: { serial: true, issuedAt: true, package: { select: { name: true } } } },
+        paymentsMade: { select: { amount: true, currency: true, method: true, status: true, billing: true, createdAt: true, paidAt: true, package: { select: { name: true } } } },
+        supportThreads: { select: { createdAt: true, status: true, messages: { select: { body: true, fromStaff: true, createdAt: true }, orderBy: { createdAt: 'asc' } } } },
+      },
+    });
+    res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="codiq-my-data.json"', 'Cache-Control': 'private, no-store' });
+    res.send(JSON.stringify({ exportedAt: new Date().toISOString(), ...me }, null, 2));
+  }
+
+  /**
+   * Deletes the account. Personal data is erased and the person can never log in again.
+   * Payment records stay (anonymised through the account) because accounting law requires them.
+   * Staff accounts are not self-service: an admin removes those.
+   */
+  @Post('delete') @HttpCode(200)
+  async deleteAccount(@CurrentUser() u: AuthUser, @Body() dto: DeleteAccountDto) {
+    if (u.role !== Role.STUDENT && u.role !== Role.PARENT) throw new ForbiddenException('Staff accounts are removed by an admin. Please ask in the chat.');
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: u.id } });
+    const passwordOk = await argon2.verify(user.passwordHash, dto.confirm).catch(() => false);
+    const emailOk = !!user.googleId && dto.confirm.trim().toLowerCase() === user.email.toLowerCase(); // Google-only accounts have no password to type
+    if (!passwordOk && !emailOk) throw new BadRequestException(user.googleId ? 'Type your email address, or your password, to confirm' : 'That password is not right');
+
+    const files = [
+      user.avatarKey,
+      ...(await this.prisma.submission.findMany({ where: { studentId: u.id, fileKey: { not: null } }, select: { fileKey: true } })).map((s) => s.fileKey),
+    ].filter((k): k is string => !!k);
+
+    await this.prisma.$transaction([
+      this.prisma.submission.deleteMany({ where: { studentId: u.id } }),
+      this.prisma.quizAttempt.deleteMany({ where: { studentId: u.id } }),
+      this.prisma.sessionProgress.deleteMany({ where: { userId: u.id } }),
+      this.prisma.liveAttendance.deleteMany({ where: { userId: u.id } }),
+      this.prisma.certificate.deleteMany({ where: { userId: u.id } }),
+      this.prisma.supportThread.deleteMany({ where: { userId: u.id } }),
+      this.prisma.parentLinkRequest.deleteMany({ where: { OR: [{ parentId: u.id }, { studentId: u.id }] } }),
+      this.prisma.enrollment.deleteMany({ where: { userId: u.id } }),
+      this.prisma.user.updateMany({ where: { parentId: u.id }, data: { parentId: null } }), // a deleted parent unlinks their children
+      this.prisma.user.update({
+        where: { id: u.id },
+        data: {
+          name: 'Deleted user', email: `deleted-${u.id}@deleted.codiq.invalid`, phone: null, googleId: null, avatarUrl: null, avatarKey: null, parentId: null,
+          passwordHash: await argon2.hash(randomBytes(32).toString('hex')), refreshTokenHash: null, resetTokenHash: null, resetTokenExpires: null,
+          calendarToken: null, emailNotifications: false, guardianConsentAt: null, deletedAt: new Date(),
+        },
+      }),
+    ]);
+    await Promise.all(files.map((k) => this.storage.remove(k)));
+    return { ok: true };
   }
 
   /** Step 2 of the picture upload: the browser already PUT the file to storage using a presigned URL. */

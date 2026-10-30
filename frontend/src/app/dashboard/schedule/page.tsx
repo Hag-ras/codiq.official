@@ -16,6 +16,30 @@ const DAY = 86_400_000;
 const WEEK_START = 6;
 const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
+/** A private link to paste into Google / Apple / Outlook calendar so classes show up on the phone. */
+function CalendarLink() {
+  const t = useT();
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const get = async (rotate = false) => {
+    setBusy(true); setCopied(false);
+    try { setUrl((await api<{ url: string }>('/schedule/calendar-link', { method: 'POST', json: { rotate } })).url); } finally { setBusy(false); }
+  };
+  if (!url) return <Button variant="secondary" className="mt-6" onClick={() => get()} disabled={busy}>{t('Add to my phone calendar')}</Button>;
+  return (
+    <Card className="mt-6 flex flex-col gap-3">
+      <h2 className="font-semibold">{t('Add to my phone calendar')}</h2>
+      <p className="text-sm text-muted">{t('Paste this link into your calendar app as a subscription (Google Calendar: Other calendars, From URL. iPhone: Settings, Calendar, Accounts, Add Subscribed Calendar). New classes appear by themselves.')}</p>
+      <div className="flex flex-wrap gap-2">
+        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-line bg-paper px-3 font-mono text-sm" dir="ltr" aria-label={t('Calendar link')} />
+        <Button onClick={async () => { await navigator.clipboard?.writeText(url).catch(() => null); setCopied(true); }}>{copied ? t('Copied') : t('Copy')}</Button>
+      </div>
+      <p className="text-sm text-muted">{t('Anyone with this link can see your class times, so keep it private.')} <button type="button" className="font-semibold underline" onClick={() => get(true)} disabled={busy}>{t('Make a new link (the old one stops working)')}</button></p>
+    </Card>
+  );
+}
+
 export default function SchedulePage() {
   const t = useT();
   const lang = useLang();
@@ -107,6 +131,7 @@ export default function SchedulePage() {
           {!monthItems.length && <p className="mt-3 hidden text-sm text-muted md:block">{t('No live classes this month.')}</p>}
         </>
       )}
+      <CalendarLink />
     </>
   );
 }

@@ -46,7 +46,7 @@ export class CertificatesService {
       try {
         const cert = await this.prisma.certificate.create({ data: { userId, packageId, serial: newSerial() }, include: { package: { select: { name: true } } } });
         this.log.log(`Certificate ${cert.serial} issued`);
-        void this.notify.certificateIssued(userId, cert.package.name).catch(() => null);
+        void this.notify.certificateIssued(userId, packageId, cert.package.name).catch(() => null);
         return cert;
       } catch (e) {
         // A duplicate serial (tiny chance) or two requests racing: look again, else retry with a new serial

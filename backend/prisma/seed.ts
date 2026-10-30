@@ -5,6 +5,10 @@ const prisma = new PrismaClient();
 const day = 86_400_000;
 
 async function main() {
+  // The seed creates accounts with a well-known password. Never on a live site, unless someone insists.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
+    throw new Error('Refusing to seed: NODE_ENV is production. The demo accounts use a public password. Set ALLOW_SEED=true only if you really mean it.');
+  }
   const passwordHash = await argon2.hash('Password123!');
   const user = (email: string, name: string, role: Role, extra: object = {}) =>
     prisma.user.upsert({ where: { email }, update: {}, create: { email, name, role, passwordHash, ...extra } });

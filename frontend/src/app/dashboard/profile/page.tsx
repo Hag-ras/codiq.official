@@ -143,6 +143,51 @@ function NotificationsCard({ me }: { me: Profile }) {
   );
 }
 
+function DataCard({ me }: { me: Profile }) {
+  const t = useT();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState('');
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const canDelete = me.role === 'STUDENT' || me.role === 'PARENT';
+  const remove = async () => {
+    setBusy(true); setError('');
+    try {
+      await api('/account/delete', { method: 'POST', json: { confirm } });
+      await api('/auth/logout', { method: 'POST' }).catch(() => null);
+      router.replace('/');
+      router.refresh();
+    } catch (e) { setError((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Card>
+      <h2 className="mb-1 text-[15px] font-semibold">{t('Your data')}</h2>
+      <p className="mb-3 max-w-xl text-sm text-muted">{t('Download everything we hold about you as a file, or delete your account.')}</p>
+      <div className="flex flex-wrap gap-2">
+        <a href="/api/account/export" download className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">{t('Download my data')}</a>
+        {canDelete && !open && <Button variant="ghost" className="text-danger" onClick={() => setOpen(true)}>{t('Delete my account')}</Button>}
+      </div>
+      {!canDelete && <p className="mt-3 text-sm text-muted">{t('Staff accounts are removed by an admin. Ask in the chat.')}</p>}
+      {open && (
+        <div className="mt-4 flex max-w-md flex-col gap-3 rounded-xl border border-[#e8b4ae] bg-[#f7e1df]/40 p-4">
+          <p className="text-sm">{t('This erases your name, email, progress, submissions, certificates and chats, and you will not be able to log in again. Payment records are kept for accounting, without your name. This cannot be undone.')}</p>
+          <Field label={me.hasGoogle ? t('Your password, or your email address') : t('Your password')}>
+            <Input type={me.hasGoogle ? 'text' : 'password'} autoComplete="off" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </Field>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 size-4 accent-(--color-danger)" checked={sure} onChange={(e) => setSure(e.target.checked)} />{t('I understand this cannot be undone')}</label>
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <div className="flex gap-2">
+            <Button className="bg-danger text-white" disabled={!sure || !confirm || busy} onClick={remove}>{busy ? t('Deleting…') : t('Delete my account')}</Button>
+            <Button variant="ghost" onClick={() => { setOpen(false); setConfirm(''); setSure(false); setError(''); }}>{t('Cancel')}</Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function PrivacyCard({ me }: { me: Profile }) {
   const t = useT();
   return (
@@ -155,7 +200,7 @@ function PrivacyCard({ me }: { me: Profile }) {
       <p className="mt-3 flex gap-4 text-sm font-semibold">
         <Link href="/terms" className="underline">{t('Terms of Use')}</Link><Link href="/privacy" className="underline">{t('Privacy Policy')}</Link>
       </p>
-      <p className="mt-3 text-sm text-muted">{t('To see, correct or delete your data, write to us in the chat (the button at the bottom of the page).')}</p>
+      <p className="mt-3 text-sm text-muted">{t('To correct something that you cannot change here, write to us in the chat (the button at the bottom of the page).')}</p>
     </Card>
   );
 }
@@ -172,6 +217,7 @@ export default function ProfilePage() {
       <NotificationsCard me={data} />
       <PasswordForm />
       <PrivacyCard me={data} />
+      <DataCard me={data} />
     </div>
   );
 }

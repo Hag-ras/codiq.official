@@ -41,11 +41,13 @@ export function AuthBackdrop() {
 
       const fire = () => {
         const dot = document.createElementNS(NS, 'circle');
+        const pick = LAYERS.map((n) => Math.floor(Math.random() * n));
+        // Give the dot a real position before anything animates it: GSAP reads a missing cx/cy as "" and the browser logs an SVG error
+        dot.setAttribute('cx', String(nodes[0][pick[0]].x));
+        dot.setAttribute('cy', String(nodes[0][pick[0]].y));
         dot.setAttribute('r', '5');
         dot.setAttribute('fill', '#2b62b3');
         sig.appendChild(dot);
-        const pick = LAYERS.map((n) => Math.floor(Math.random() * n));
-        gsap.set(dot, { attr: { cx: nodes[0][pick[0]].x, cy: nodes[0][pick[0]].y } });
         const tl = gsap.timeline({ onComplete: () => dot.remove() });
         for (let l = 1; l < LAYERS.length; l++) {
           const p = nodes[l][pick[l]];

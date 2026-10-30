@@ -182,6 +182,40 @@ async function main() {
     const attemptRow = await prisma.quizAttempt.findFirstOrThrow({ where: { studentId: malak.id, quiz: { sessionId: live.id } } });
     check('a quiz result emails the parent', att.status === 201 || att.status === 200 ? (await logCount('quiz-result', attemptRow.id)) === 1 : false, `status ${att.status}`);
 
+
+    section('8. Payment webhook queue');
+    const { WebhookQueue } = await import('../src/payments/payments.module');
+    const calls: string[] = [];
+    let failTimes = 0;
+    const fakePayments = { markPaid: async (id: string) => { if (failTimes-- > 0) throw new Error('database hiccup'); calls.push(`paid:${id}`); }, markFailed: async (id: string) => { calls.push(`failed:${id}`); } };
+    const queue = new WebhookQueue(prisma as any, fakePayments as any, { get: (_k: string, d: string) => d } as any);
+    const k = `test:${tag}`;
+    const evId = await queue.accept('paymob', `${k}:1`, { type: 'TRANSACTION', obj: { id: 1, success: true, pending: false, order: { merchant_order_id: 'pay_1' } } });
+    check('a webhook is stored and a worker id returned', !!evId);
+    check('the same delivery again is stored only once', (await queue.accept('paymob', `${k}:1`, {})) === null);
+    await new Promise((r) => setTimeout(r, 400));
+    check('it is applied right after (payment marked paid)', calls.includes('paid:pay_1'));
+    check('and the event is marked DONE', (await prisma.webhookEvent.findUniqueOrThrow({ where: { id: evId! } })).status === 'DONE');
+    failTimes = 1;
+    const ev2 = await queue.accept('paymob', `${k}:2`, { type: 'TRANSACTION', obj: { id: 2, success: true, pending: false, order: { merchant_order_id: 'pay_2' } } });
+    await new Promise((r) => setTimeout(r, 400));
+    let wh = await prisma.webhookEvent.findUniqueOrThrow({ where: { id: ev2! } });
+    check('a failure keeps the event for a retry with a delay', wh.status === 'PENDING' && wh.attempts === 1 && wh.nextAttemptAt.getTime() > Date.now() && !!wh.lastError, wh.lastError ?? '');
+    await prisma.webhookEvent.update({ where: { id: ev2! }, data: { nextAttemptAt: new Date(Date.now() - 1000) } });
+    await queue.sweep();
+    wh = await prisma.webhookEvent.findUniqueOrThrow({ where: { id: ev2! } });
+    check('the timer retries it and it succeeds', wh.status === 'DONE' && calls.includes('paid:pay_2'));
+    failTimes = 99;
+    const ev3 = await queue.accept('fawry', `${k}:3`, { orderStatus: 'PAID', merchantRefNumber: 'pay_3', fawryRefNumber: 'f3' });
+    await new Promise((r) => setTimeout(r, 300));
+    for (let i = 0; i < 8; i++) { await prisma.webhookEvent.update({ where: { id: ev3! }, data: { nextAttemptAt: new Date(Date.now() - 1000) } }); await queue.sweep(); }
+    wh = await prisma.webhookEvent.findUniqueOrThrow({ where: { id: ev3! } });
+    check('after 8 failed attempts it is parked as FAILED, not lost', wh.status === 'FAILED' && wh.attempts === 8, `attempts=${wh.attempts}`);
+    failTimes = 0;
+    await queue.retry(ev3!);
+    check('an admin can retry a failed event', (await prisma.webhookEvent.findUniqueOrThrow({ where: { id: ev3! } })).status === 'DONE' && calls.includes('paid:pay_3'));
+    await prisma.webhookEvent.deleteMany({ where: { dedupeKey: { startsWith: k } } });
+
     // Opt-out
     await prisma.user.update({ where: { id: nour.id }, data: { emailNotifications: false } });
     await prisma.notificationLog.deleteMany({ where: { kind: 'quiz-result', key: { startsWith: attemptRow.id } } });
@@ -189,6 +223,49 @@ async function main() {
     check('a parent who turned emails off gets nothing', (await logCount('quiz-result', attemptRow.id)) === 0);
     await prisma.user.update({ where: { id: nour.id }, data: { emailNotifications: true } });
 
+
+    section('9. Arabic emails');
+    await prisma.user.update({ where: { id: nour.id }, data: { language: 'ar' } });
+    await prisma.notificationLog.deleteMany({ where: { kind: 'quiz-result', key: { startsWith: attemptRow.id } } });
+    sent.length = 0;
+    await notify.quizResult(attemptRow.id);
+    check('a parent whose language is Arabic gets an Arabic email', sent.length === 1 && /[\u0600-\u06FF]/.test(sent[0].subject), sent[0]?.subject ?? 'none');
+    await prisma.user.update({ where: { id: nour.id }, data: { language: 'en' } });
+    await prisma.notificationLog.deleteMany({ where: { kind: 'quiz-result', key: { startsWith: attemptRow.id } } });
+    sent.length = 0;
+    await notify.quizResult(attemptRow.id);
+    check('and an English one when it is English', sent.length === 1 && /quiz result/.test(sent[0].subject), sent[0]?.subject ?? 'none');
+
+    section('10. Calendar feed, data export and account deletion');
+    const link1 = (await call(malakJar, 'POST', '/schedule/calendar-link', {})).json.url as string;
+    check('a calendar link is created', /\/api\/schedule\/feed\/[\w-]{20,}\.ics$/.test(link1), link1);
+    const feedPath = link1.slice(link1.indexOf('/api/') + 4);
+    const feed = await fetch(`${API}/api${feedPath}`);
+    const ics = await feed.text();
+    check('the feed works without logging in and is a calendar', feed.status === 200 && ics.startsWith('BEGIN:VCALENDAR') && ics.includes('BEGIN:VEVENT'), `${ics.length} chars`);
+    check('it only lists the students own classes', !ics.includes('Cert Test'));
+    check('a made-up link is refused', (await fetch(`${API}/api/schedule/feed/${'x'.repeat(32)}.ics`)).status === 404);
+    const link2 = (await call(malakJar, 'POST', '/schedule/calendar-link', { rotate: true })).json.url as string;
+    check('rotating gives a new link and the old one stops working', link2 !== link1 && (await fetch(`${API}/api${feedPath}`)).status === 404);
+    const exp = await call(malakJar, 'GET', '/account/export');
+    check('"download my data" is allowed for the signed-in person', exp.status === 200);
+    const expText = await fetch(`${API}/api/account/export`, { headers: { cookie: malakJar } }).then((r) => r.text());
+    check('the export contains the profile and progress', expText.includes('malak@codiq.app') && expText.includes('"enrollments"'));
+
+    const delEmail = `del.${tag}@codiq.app`;
+    const reg = await fetch(`${API}/api/auth/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Delete Me', email: delEmail, password: PW, accountType: 'STUDENT', track: 'KIDS', acceptTerms: true, language: 'ar' }) });
+    const delJar = reg.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+    const delRow = await prisma.user.findUniqueOrThrow({ where: { email: delEmail } });
+    made.users.push(delRow.id);
+    check('the language chosen at sign-up is stored', delRow.language === 'ar');
+    check('deleting with the wrong password is refused', (await call(delJar, 'POST', '/account/delete', { confirm: 'wrong password' })).status === 400);
+    check('a staff account cannot delete itself this way', (await call(karim, 'POST', '/account/delete', { confirm: PW })).status === 403);
+    check('deleting with the right password works', (await call(delJar, 'POST', '/account/delete', { confirm: PW })).status === 200);
+    const gone = await prisma.user.findUniqueOrThrow({ where: { id: delRow.id } });
+    check('the personal data is erased', gone.name === 'Deleted user' && gone.email.endsWith('@deleted.codiq.invalid') && !!gone.deletedAt && !gone.refreshTokenHash);
+    check('the old session stops working at once', (await call(delJar, 'GET', '/auth/me')).status === 401);
+    const relogin = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: delEmail, password: PW }) });
+    check('and they can no longer log in', relogin.status === 401);
   } finally {
     await prisma.notificationLog.deleteMany({ where: { OR: [{ kind: { in: ['live-1h', 'live-24h', 'renew-1d', 'renew-3d', 'renew-ended', 'weekly', 'assignment-new', 'assignment-graded', 'quiz-result'] } }] } });
     // put everything back, even when a check threw halfway

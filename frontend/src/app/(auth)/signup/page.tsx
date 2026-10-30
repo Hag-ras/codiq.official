@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { Button, Field, Input, Select, cx } from '@/components/ui';
 import { GoogleButton, OrDivider } from '@/components/google-button';
 import { TRACK_AUDIENCE, TRACK_LABEL } from '@/lib/types';
-import { useT } from '@/components/i18n-provider';
+import { useLang, useT } from '@/components/i18n-provider';
 
 const schema = z
   .object({
@@ -26,6 +26,7 @@ type Values = z.infer<typeof schema>;
 
 function SignupForm() {
   const t = useT();
+  const lang = useLang();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') ?? '/dashboard';
@@ -42,7 +43,7 @@ function SignupForm() {
   const onSubmit = handleSubmit(async ({ phone, ...v }) => {
     setError('');
     try {
-      await api('/auth/register', { method: 'POST', json: { ...v, phone: phone || undefined, track: v.accountType === 'STUDENT' ? v.track : undefined } });
+      await api('/auth/register', { method: 'POST', json: { ...v, language: lang, phone: phone || undefined, track: v.accountType === 'STUDENT' ? v.track : undefined } });
       router.replace(next);
       router.refresh();
     } catch (e) {
@@ -98,7 +99,7 @@ function SignupForm() {
         <Button type="submit" disabled={formState.isSubmitting}>{formState.isSubmitting ? t('Creating…') : t('Create account')}</Button>
       </form>
       <OrDivider />
-      <GoogleButton text="signup_with" next={next} extra={{ accountType: type, track: type === 'STUDENT' ? track : undefined, acceptTerms: accepted }} />
+      <GoogleButton text="signup_with" next={next} extra={{ accountType: type, track: type === 'STUDENT' ? track : undefined, acceptTerms: accepted, language: lang }} />
     </>
   );
 }

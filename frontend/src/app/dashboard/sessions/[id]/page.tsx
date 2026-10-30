@@ -7,11 +7,13 @@ import { fmtDate, fmtSize } from '@/lib/format';
 import { Badge, Button, ButtonLink, Card, Empty, Textarea, cx } from '@/components/ui';
 import type { SessionDetail } from '@/lib/types';
 import { YouTubePlayer } from '@/components/youtube-player';
+import { useT } from '@/components/i18n-provider';
 
 type Tab = 'video' | 'materials' | 'assignment' | 'quiz';
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const t = useT();
   const { data: s, error } = useQuery({ queryKey: ['session', id], queryFn: () => api<SessionDetail>(`/sessions/${id}`), staleTime: 0, refetchOnMount: 'always' });
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => api<{ role: string }>('/auth/me') });
   const [tab, setTab] = useState<Tab>('video');
@@ -21,10 +23,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   if (!s) return <div className="h-60 animate-pulse rounded-xl bg-black/5" />;
 
   const tabs: [Tab, string][] = [
-    ['video', s.type === 'LIVE' && !s.hasRecording ? 'Live class' : 'Recording'],
-    ['materials', `Materials (${s.materials.length})`],
-    ...(s.assignment ? [['assignment', 'Assignment'] as [Tab, string]] : []),
-    ...(s.quiz ? [['quiz', 'Quiz'] as [Tab, string]] : []),
+    ['video', s.type === 'LIVE' && !s.hasRecording ? t('Live class') : t('Recording')],
+    ['materials', `${t('Materials')} (${s.materials.length})`],
+    ...(s.assignment ? [['assignment', t('Assignment')] as [Tab, string]] : []),
+    ...(s.quiz ? [['quiz', t('Quiz')] as [Tab, string]] : []),
   ];
 
   return (
@@ -32,20 +34,20 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       <Link href="/dashboard/sessions" className="text-sm font-semibold text-muted hover:text-ink">← {s.package.name}</Link>
       <h1 className="mt-2 font-mono text-[26px] font-bold tracking-[-0.03em]">{s.order}. {s.title}</h1>
       <p className="mt-1 text-[15px] text-muted">
-        {s.type === 'LIVE' ? `Live · ${fmtDate(s.startsAt, true)}` : 'Recorded'} · {s.durationMin} min{s.instructor ? ` · ${s.instructor.name}` : ''}
+        {s.type === 'LIVE' ? `${t('Live')} · ${fmtDate(s.startsAt, true)}` : t('Recorded')} · {s.durationMin} {t('min')}{s.instructor ? ` · ${s.instructor.name}` : ''}
       </p>
 
       {(me?.role === 'ADMIN' || me?.role === 'INSTRUCTOR') && (
-        <Link href={me.role === 'ADMIN' ? `/dashboard/admin/sessions/${s.id}/edit` : `/dashboard/teach/sessions/${s.id}/edit`} className="mt-3 mr-2 inline-flex min-h-10 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">Edit session content</Link>
+        <Link href={me.role === 'ADMIN' ? `/dashboard/admin/sessions/${s.id}/edit` : `/dashboard/teach/sessions/${s.id}/edit`} className="mt-3 mr-2 inline-flex min-h-10 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">{t('Edit session content')}</Link>
       )}
       {s.type === 'LIVE' && ['ADMIN', 'ASSISTANT', 'INSTRUCTOR'].includes(me?.role ?? '') && (
-        <Link href={`/dashboard/sessions/${s.id}/report`} className="mt-3 inline-flex min-h-10 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">Attendance &amp; engagement report</Link>
+        <Link href={`/dashboard/sessions/${s.id}/report`} className="mt-3 inline-flex min-h-10 items-center rounded-[10px] border border-line bg-white px-4 text-[15px] font-semibold hover:border-ink">{t('Attendance & engagement report')}</Link>
       )}
 
       <div className="mt-6 mb-5 flex gap-1 overflow-x-auto border-b border-line">
-        {tabs.map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cx('-mb-px min-h-11 shrink-0 border-b-2 px-3 text-[15px] font-semibold', tab === t ? 'border-(--accent) text-ink' : 'border-transparent text-muted')}>
+        {tabs.map(([tk, label]) => (
+          <button key={tk} onClick={() => setTab(tk)}
+            className={cx('-mb-px min-h-11 shrink-0 border-b-2 px-3 text-[15px] font-semibold', tab === tk ? 'border-(--accent) text-ink' : 'border-transparent text-muted')}>
             {label}
           </button>
         ))}
@@ -57,11 +59,11 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           {s.materials.map((m) => (
             <li key={m.id} className="flex min-h-14 items-center justify-between gap-3 border-b border-line px-4 last:border-0">
               <span className="min-w-0"><span className="block truncate font-semibold">{m.name}</span><span className="text-sm text-muted">{fmtSize(m.sizeBytes)}</span></span>
-              <Button variant="secondary" onClick={() => openSignedUrl(`/materials/${m.id}/download`)}>Download</Button>
+              <Button variant="secondary" onClick={() => openSignedUrl(`/materials/${m.id}/download`)}>{t('Download')}</Button>
             </li>
           ))}
         </ul>
-      ) : <Empty>No materials for this session.</Empty>)}
+      ) : <Empty>{t('No materials for this session.')}</Empty>)}
       {tab === 'assignment' && s.assignment && <AssignmentTab s={s} isStudent={isStudent} />}
       {tab === 'quiz' && s.quiz && <QuizTab s={s} isStudent={isStudent} />}
     </>
@@ -69,20 +71,21 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 }
 
 function VideoTab({ s, isStudent, canMonitor }: { s: SessionDetail; isStudent: boolean; canMonitor: boolean }) {
+  const t = useT();
   const { data } = useQuery({ queryKey: ['recording', s.id], queryFn: () => api<{ url?: string; youtubeId?: string }>(`/sessions/${s.id}/recording`), enabled: s.hasRecording, staleTime: 50 * 60_000 });
   const lastSent = useRef(0);
 
   if (!s.hasRecording)
     return (
       <Card className="flex flex-col items-start gap-3">
-        {s.isLiveNow ? <Badge tone="live">● Live now</Badge> : <Badge>{fmtDate(s.startsAt, true)}</Badge>}
+        {s.isLiveNow ? <Badge tone="live">● {t('Live now')}</Badge> : <Badge>{fmtDate(s.startsAt, true)}</Badge>}
         <p className="text-[15px] text-[#4a4945]">
-          {s.isLiveNow ? 'The class is running. Join with camera and mic, or just watch and chat.' : 'The classroom opens 15 minutes before start. The recording will appear here after class.'}
+          {s.isLiveNow ? t('The class is running. Join with camera and mic, or just watch and chat.') : t('The classroom opens 15 minutes before start. The recording will appear here after class.')}
         </p>
         {s.isLiveNow && (
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href={`/live/${s.id}`} variant="accent">Join class</ButtonLink>
-            {canMonitor && <ButtonLink href={`/live/${s.id}?monitor=1`} variant="secondary">Monitor quietly</ButtonLink>}
+            <ButtonLink href={`/live/${s.id}`} variant="accent">{t('Join class')}</ButtonLink>
+            {canMonitor && <ButtonLink href={`/live/${s.id}?monitor=1`} variant="secondary">{t('Monitor quietly')}</ButtonLink>}
           </div>
         )}
       </Card>
@@ -112,6 +115,7 @@ function VideoTab({ s, isStudent, canMonitor }: { s: SessionDetail; isStudent: b
 }
 
 function AssignmentTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
+  const t = useT();
   const a = s.assignment!;
   const sub = a.mySubmission;
   const qc = useQueryClient();
@@ -124,25 +128,25 @@ function AssignmentTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean 
     <div className="grid gap-5 md:grid-cols-[1.2fr_1fr]">
       <Card>
         <h2 className="text-lg font-bold">{a.title}</h2>
-        <p className="mt-1 text-sm text-muted">{a.dueAt ? `Due ${fmtDate(a.dueAt, true)}` : 'No deadline'} · {a.maxScore} points</p>
+        <p className="mt-1 text-sm text-muted">{a.dueAt ? `${t('Due')} ${fmtDate(a.dueAt, true)}` : t('No deadline')} · {a.maxScore} {t('points')}</p>
         <p className="mt-4 text-[15px] leading-relaxed whitespace-pre-line text-[#4a4945]">{a.brief}</p>
       </Card>
       {isStudent && (
         <Card className="flex flex-col gap-4">
           {sub?.status === 'GRADED' ? (
             <>
-              <div className="flex items-center justify-between"><h3 className="font-semibold">Graded</h3><Badge tone="good">{sub.score}/{a.maxScore}</Badge></div>
+              <div className="flex items-center justify-between"><h3 className="font-semibold">{t('Graded')}</h3><Badge tone="good">{sub.score}/{a.maxScore}</Badge></div>
               {sub.feedback && <p className="rounded-lg bg-paper p-3 text-[15px]">{sub.feedback}</p>}
             </>
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Your answer</h3>
-                {sub && <Badge tone="accent">Submitted {fmtDate(sub.submittedAt)}</Badge>}
+                <h3 className="font-semibold">{t('Your answer')}</h3>
+                {sub && <Badge tone="accent">{t('Submitted')} {fmtDate(sub.submittedAt)}</Badge>}
               </div>
-              <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Write your answer or notes for your teacher" />
+              <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t('Write your answer or notes for your teacher')} />
               <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-sm" />
-              {sub?.fileName && !file && <p className="text-sm text-muted">Attached: {sub.fileName}</p>}
+              {sub?.fileName && !file && <p className="text-sm text-muted">{t('Attached')}: {sub.fileName}</p>}
               {error && <p className="text-sm text-danger">{error}</p>}
               <Button variant="accent" disabled={busy || (!text.trim() && !file && !sub?.fileName)}
                 onClick={async () => {
@@ -154,7 +158,7 @@ function AssignmentTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean 
                     setFile(null);
                   } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
                 }}>
-                {busy ? 'Submitting…' : sub ? 'Resubmit' : 'Submit'}
+                {busy ? t('Submitting…') : sub ? t('Resubmit') : t('Submit')}
               </Button>
             </>
           )}
@@ -165,6 +169,7 @@ function AssignmentTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean 
 }
 
 function QuizTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
+  const t = useT();
   const q = s.quiz!;
   const qc = useQueryClient();
   const [answers, setAnswers] = useState<number[]>(() => q.lastAttempt?.answers ?? Array(q.questions.length).fill(-1));
@@ -181,9 +186,9 @@ function QuizTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
         <Card className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-3xl font-bold">{result.score}%</div>
-            <div className="text-sm text-muted">{result.passed ? 'Passed' : `Pass mark is ${q.passScore}%`}</div>
+            <div className="text-sm text-muted">{result.passed ? t('Passed') : t('Pass mark is {n}%', { n: q.passScore })}</div>
           </div>
-          <Button variant="secondary" onClick={() => { setResult(null); setAnswers(Array(q.questions.length).fill(-1)); }}>Try again</Button>
+          <Button variant="secondary" onClick={() => { setResult(null); setAnswers(Array(q.questions.length).fill(-1)); }}>{t('Try again')}</Button>
         </Card>
       )}
       {q.questions.map((question, qi) => (
@@ -214,7 +219,7 @@ function QuizTab({ s, isStudent }: { s: SessionDetail; isStudent: boolean }) {
               qc.invalidateQueries({ queryKey: ['sessions', 'mine'] });
             } finally { setBusy(false); }
           }}>
-          Submit quiz
+          {t('Submit quiz')}
         </Button>
       )}
     </div>

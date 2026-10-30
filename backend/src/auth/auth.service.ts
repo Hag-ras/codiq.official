@@ -6,7 +6,7 @@ import { Role, User } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'crypto';
 import { MailService, PrismaService } from '../common/infra.module';
-import { resetPasswordMail, welcomeMail } from '../common/mail-templates';
+import { asLang, resetPasswordMail, welcomeMail } from '../common/mail-templates';
 import { avatarSrc } from '../common/avatar';
 import { GoogleDto, LoginDto, RegisterDto } from './dto';
 
@@ -38,9 +38,10 @@ export class AuthService {
         passwordHash: await argon2.hash(dto.password),
         termsAcceptedAt: new Date(),
         termsVersion: TERMS_VERSION,
+        language: asLang(dto.language),
       },
     });
-    void this.mail.sendTemplate(user.email, welcomeMail(user.name, `${this.config.get('FRONTEND_URL')}/dashboard`));
+    void this.mail.sendTemplate(user.email, welcomeMail(user.name, `${this.config.get('FRONTEND_URL')}/dashboard`, asLang(user.language)));
     return this.issue(user);
   }
 
@@ -89,9 +90,10 @@ export class AuthService {
         passwordHash: await argon2.hash(randomBytes(32).toString('hex')),
         termsAcceptedAt: new Date(),
         termsVersion: TERMS_VERSION,
+        language: asLang(dto.language),
       },
     });
-    void this.mail.sendTemplate(user.email, welcomeMail(user.name, `${this.config.get('FRONTEND_URL')}/dashboard`));
+    void this.mail.sendTemplate(user.email, welcomeMail(user.name, `${this.config.get('FRONTEND_URL')}/dashboard`, asLang(user.language)));
     return { needsProfile: false as const, ...(await this.issue(user)) };
   }
 
@@ -128,7 +130,7 @@ export class AuthService {
       data: { resetTokenHash: sha256(raw), resetTokenExpires: new Date(Date.now() + 3_600_000) },
     });
     const link = `${this.config.get('FRONTEND_URL')}/reset-password?token=${raw}`;
-    await this.mail.sendTemplate(user.email, resetPasswordMail(user.name, link));
+    await this.mail.sendTemplate(user.email, resetPasswordMail(user.name, link, asLang(user.language)));
   }
 
   async resetPassword(token: string, password: string) {

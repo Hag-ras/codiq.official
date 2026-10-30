@@ -135,6 +135,13 @@ Upload each lesson to YouTube as **Unlisted** (not Private, because private vide
 - **Scheduled emails** (class reminders 24 h and 1 h before, renewal reminders 3 days and 1 day before and when a plan ends, parent weekly summary on Fridays from 10:00 Cairo time) run on a timer inside the API and need `RESEND_API_KEY` to actually send. `JOBS_ENABLED=false` turns the timer off. Each email is logged in `NotificationLog`, so nothing is sent twice even with several API servers.
 - **Certificates** are PDFs drawn by the API (fonts in `backend/assets/fonts`, copy that folder when you deploy). Anyone can check a certificate at `/verify/<number>`.
 
+- **Payment webhooks** are saved first and answered with 200 straight away; a worker applies them and retries failures (30 s, 1 min, 2 min ... up to 8 tries). Events that still fail are kept: an admin can list them at `GET /api/payments/webhook-events` and retry with `POST /api/payments/webhook-events/<id>/retry`. Watch the API log for "giving up".
+- **Checkout** only shows the payment methods whose keys are set (`GET /api/payments/methods`), so Fawry stays hidden until `FAWRY_MERCHANT_CODE` and `FAWRY_SECURE_KEY` exist.
+- **Seeding**: `npm run db:seed` refuses to run when `NODE_ENV=production` (the demo accounts share a public password). `ALLOW_SEED=true` overrides it; do not.
+- **Self-service privacy**: users can download their data and delete their account from Profile. Deleting erases personal data and keeps payment records without the name.
+- **Phone calendar**: Schedule > "Add to my phone calendar" gives a private `.ics` link. For it to work from the internet, set `API_PUBLIC_URL` (or `FRONTEND_URL`) to your real address.
+- **Monitoring and backups** are not code: turn on Supabase daily backups (Pro plan) and, if you want error alerts, add a free Sentry project later.
+
 ## Admin access rules
 - Every URL with an `admin` path segment is locked to admins by a global guard (`AdminAreaGuard`), even if a route forgets `@Roles` or is marked public. Roles are read from the database, not the token, so a demoted admin loses access immediately.
 - Admin pages check again on the server; non-admins are redirected.

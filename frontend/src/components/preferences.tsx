@@ -21,7 +21,10 @@ export function Preferences({ className = '' }: { className?: string }) {
     setTheme(next);
   };
   const switchLang = () => {
-    document.cookie = `${LANG_COOKIE}=${lang === 'ar' ? 'en' : 'ar'}; path=/; max-age=31536000; samesite=lax`;
+    const next = lang === 'ar' ? 'en' : 'ar';
+    document.cookie = `${LANG_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+    // Signed in? Remember it for our emails too. Plain fetch: a 401 for visitors is fine and must not redirect.
+    void fetch('/api/account/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language: next }) }).catch(() => null);
     router.refresh();
   };
   const btn = 'grid size-10 place-items-center rounded-full border border-line bg-white text-[15px] font-semibold text-ink transition hover:scale-105 hover:border-ink active:scale-95';

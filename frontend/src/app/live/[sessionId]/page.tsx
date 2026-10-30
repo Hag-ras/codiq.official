@@ -9,9 +9,11 @@ import '@livekit/components-styles';
 import { api } from '@/lib/api';
 import { Logo } from '@/components/ui';
 import type { SessionDetail } from '@/lib/types';
+import { useT } from '@/components/i18n-provider';
 
 export default function LivePage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
+  const t = useT();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useQuery({ queryKey: ['session', sessionId], queryFn: () => api<SessionDetail>(`/sessions/${sessionId}`) });
@@ -28,7 +30,7 @@ export default function LivePage({ params }: { params: Promise<{ sessionId: stri
   if (error)
     return (
       <div className="grid min-h-dvh place-items-center bg-night p-6 text-center text-day">
-        <div><p className="mb-4 text-lg">{(error as Error).message}</p><Link href="/dashboard" className="underline">Back to dashboard</Link></div>
+        <div><p className="mb-4 text-lg">{(error as Error).message}</p><Link href="/dashboard" className="underline">{t('Back to dashboard')}</Link></div>
       </div>
     );
 
@@ -37,18 +39,19 @@ export default function LivePage({ params }: { params: Promise<{ sessionId: stri
       {conn ? (
         <LiveKitRoom serverUrl={conn.url} token={conn.token} connect video={conn.isHost} audio={conn.isHost}
           onDisconnected={() => router.push(`/dashboard/sessions/${sessionId}`)} className="flex min-h-0 flex-1 flex-col">
-          <TopBar title={session?.title ?? 'Live class'} sessionId={sessionId} isHost={conn.isHost} monitor={conn.monitor} />
+          <TopBar title={session?.title ?? t('Live class')} sessionId={sessionId} isHost={conn.isHost} monitor={conn.monitor} />
           <Classroom sessionId={sessionId} isHost={conn.isHost} monitor={conn.monitor} materials={session?.materials ?? []} onMaterialAdded={() => qc.invalidateQueries({ queryKey: ['session', sessionId] })} />
           <RoomAudioRenderer />
         </LiveKitRoom>
       ) : (
-        <div className="grid flex-1 place-items-center text-[#b4b2ac]">Connecting to the classroom…</div>
+        <div className="grid flex-1 place-items-center text-[#b4b2ac]">{t('Connecting to the classroom…')}</div>
       )}
     </div>
   );
 }
 
 function TopBar({ title, sessionId, isHost, monitor }: { title: string; sessionId: string; isHost: boolean; monitor: boolean }) {
+  const t = useT();
   const { localParticipant } = useLocalParticipant();
   const participants = useParticipants();
   const [hand, setHand] = useState(false);
@@ -67,7 +70,7 @@ function TopBar({ title, sessionId, isHost, monitor }: { title: string; sessionI
       <div className="flex min-w-0 items-center gap-4">
         <Logo dark size={18} />
         <span className="truncate text-[15px] font-semibold">{title}</span>
-        <span className="text-sm text-[#b4b2ac]">{participants.length} in class</span>
+        <span className="text-sm text-[#b4b2ac]">{participants.length} {t('in class')}</span>
       </div>
       <div className="flex items-center gap-2">
         {hands.length > 0 && (
@@ -75,10 +78,10 @@ function TopBar({ title, sessionId, isHost, monitor }: { title: string; sessionI
             ✋ {hands.map((p) => p.name?.split(' ')[0]).join(', ')}
           </span>
         )}
-        {monitor && <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">👁 Monitoring quietly</span>}
+        {monitor && <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">👁 {t('Monitoring quietly')}</span>}
         {!isHost && !cohost && !monitor && (
           <button onClick={toggleHand} className="min-h-10 rounded-[10px] bg-white/10 px-4 text-sm font-semibold hover:bg-white/20">
-            {hand ? 'Lower hand' : 'Raise hand'}
+            {hand ? t('Lower hand') : t('Raise hand')}
           </button>
         )}
         {(isHost || cohost) && (
@@ -88,14 +91,14 @@ function TopBar({ title, sessionId, isHost, monitor }: { title: string; sessionI
               setRecording('starting');
               try { await api(`/live/${sessionId}/recording/start`, { method: 'POST' }); setRecording('on'); } catch { setRecording('idle'); }
             }}>
-            {recording === 'on' ? '● Recording' : recording === 'starting' ? 'Starting…' : 'Record class'}
+            {recording === 'on' ? `● ${t('Recording')}` : recording === 'starting' ? t('Starting…') : t('Record class')}
           </button>
           <button className="min-h-10 rounded-[10px] bg-[#b3402a] px-4 text-sm font-semibold text-white hover:brightness-110"
             onClick={async () => {
-              if (!confirm('End the class for everyone? Nobody but a host can come back in.')) return;
+              if (!confirm(t('End the class for everyone? Nobody but a host can come back in.'))) return;
               await api(`/live/${sessionId}/end`, { method: 'POST' }).catch((e) => alert((e as Error).message));
             }}>
-            End class
+            {t('End class')}
           </button>
           </>
         )}

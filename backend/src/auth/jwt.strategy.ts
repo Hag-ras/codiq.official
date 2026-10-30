@@ -20,7 +20,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
   /** A deleted user's still-valid token stops working immediately. */
   async validate(p: { sub: string; role: Role; email: string }): Promise<AuthUser> {
-    if (!(await this.prisma.user.findUnique({ where: { id: p.sub }, select: { id: true } }))) throw new UnauthorizedException();
+    const u = await this.prisma.user.findUnique({ where: { id: p.sub }, select: { id: true, deletedAt: true } });
+    if (!u || u.deletedAt) throw new UnauthorizedException();
     return { id: p.sub, role: p.role, email: p.email };
   }
 }

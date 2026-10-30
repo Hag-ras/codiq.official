@@ -92,6 +92,12 @@ model User {
   guardianConsentAt DateTime?
   /// Class reminders, renewal reminders, grade and progress emails. Users can turn this off in their profile.
   emailNotifications Boolean  @default(true)
+  /// Language of the emails we send them ('en' or 'ar'), taken from the site language when they sign up
+  language          String    @default("en")
+  /// Secret in the link of their calendar feed (.ics). Null until they ask for one; regenerate to revoke.
+  calendarToken     String?   @unique
+  /// Set when the person asked to delete their account: personal data is erased, payment records are kept for accounting
+  deletedAt         DateTime?
 
   enrollments            Enrollment[]
   paymentsMade           Payment[]           @relation("Payer")
@@ -413,4 +419,28 @@ model Certificate {
   issuedAt  DateTime @default(now())
 
   @@unique([userId, packageId])
+}
+
+enum WebhookStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+/// Every payment webhook is saved first and answered with 200 at once; a worker then applies it, retrying with a growing delay.
+model WebhookEvent {
+  id            String        @id @default(cuid())
+  provider      String
+  /// Same delivery sent twice (providers retry) = same key = stored once
+  dedupeKey     String        @unique
+  payload       Json
+  status        WebhookStatus @default(PENDING)
+  attempts      Int           @default(0)
+  nextAttemptAt DateTime      @default(now())
+  lastError     String?
+  receivedAt    DateTime      @default(now())
+  processedAt   DateTime?
+
+  @@index([status, nextAttemptAt])
 }

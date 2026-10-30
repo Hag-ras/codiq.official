@@ -7,8 +7,10 @@ import { api } from '@/lib/api';
 import { egp } from '@/lib/format';
 import { ButtonLink, Logo } from '@/components/ui';
 import type { Payment } from '@/lib/types';
+import { useT } from '@/components/i18n-provider';
 
 function Result() {
+  const t = useT();
   const id = useSearchParams().get('paymentId');
   // Paymob redirects here before (or after) the webhook lands, so poll until it settles.
   const { data } = useQuery({
@@ -21,12 +23,12 @@ function Result() {
   const status = data?.status;
   const view =
     status === 'PAID'
-      ? { title: 'You are enrolled', body: `${data!.package.name} is unlocked. Your first session is waiting in the dashboard.` }
+      ? { title: t('You are enrolled'), body: t('{name} is unlocked. Your first session is waiting in the dashboard.', { name: data!.package.name }) }
       : status === 'FAILED'
-        ? { title: 'Payment did not go through', body: 'No money was taken. You can try again or pick another method.' }
+        ? { title: t('Payment did not go through'), body: t('No money was taken. You can try again or pick another method.') }
         : status === 'AWAITING_REVIEW'
-          ? { title: 'Under review', body: 'We are confirming your InstaPay transfer.' }
-          : { title: 'Confirming payment…', body: 'This usually takes a few seconds.' };
+          ? { title: t('Under review'), body: t('We are confirming your InstaPay transfer.') }
+          : { title: t('Confirming payment…'), body: t('This usually takes a few seconds.') };
 
   return (
     <div className="flex min-h-dvh flex-col items-center px-5 py-10">
@@ -36,7 +38,7 @@ function Result() {
         <p className="mt-2 text-[15px] text-[#4a4945]">{view.body}</p>
         {data && <p className="mt-4 font-mono text-sm text-muted">{egp(data.amount)} · {data.method.toLowerCase()} · #{data.id.slice(-8)}</p>}
         <div className="mt-6 flex justify-center gap-3">
-          {status === 'FAILED' ? <ButtonLink href="/pricing">Try again</ButtonLink> : <ButtonLink href="/dashboard">Go to dashboard</ButtonLink>}
+          {status === 'FAILED' ? <ButtonLink href="/pricing">{t('Try again')}</ButtonLink> : <ButtonLink href="/dashboard">{t('Go to dashboard')}</ButtonLink>}
         </div>
       </div>
     </div>

@@ -30,7 +30,7 @@ export function ParentHome() {
       {isLoading ? (
         <div className="h-40 animate-pulse rounded-xl bg-black/5" />
       ) : !data?.length ? (
-        <Empty>{t("Link your child's Codiq student account to buy packages for them and follow their progress. They need to sign up first.")}</Empty>
+        <HowLinkingWorks onLink={() => setAdding(true)} />
       ) : (
         <div className="stagger grid gap-5 md:grid-cols-2">
           {data.map((c) => (
@@ -127,5 +127,30 @@ function PendingRequests() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Shown to a parent who has not linked anyone yet: the two-step link (their child accepts) is the part people get stuck on. */
+function HowLinkingWorks({ onLink }: { onLink: () => void }) {
+  const t = useT();
+  const steps: [string, string][] = [
+    [t('Your child makes their own account'), t('They open codiq, tap "Create account" and choose "I\'m a student". If they already have one, skip this step.')],
+    [t('You send a link request'), t('Press "Link a child", enter the email they signed up with and confirm that you are their parent or guardian.')],
+    [t('Your child says yes'), t('They log in and see a yellow box on their home page asking to accept you. Nothing is shared until they do.')],
+  ];
+  return (
+    <Card>
+      <h2 className="font-semibold">{t("Follow your child's learning in 3 steps")}</h2>
+      <ol className="mt-4 flex flex-col gap-4">
+        {steps.map(([title, text], i) => (
+          <li key={title} className="flex gap-3">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-(--accent-soft) font-mono text-sm font-bold">{i + 1}</span>
+            <span><b className="block">{title}</b><span className="text-[15px] text-muted">{text}</span></span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-4 text-sm text-muted">{t('Once linked you can see their progress, scores, attendance and certificates, buy packages for them, and get a weekly summary by email.')}</p>
+      <Button className="mt-4" onClick={onLink}>{t('Link a child')}</Button>
+    </Card>
   );
 }

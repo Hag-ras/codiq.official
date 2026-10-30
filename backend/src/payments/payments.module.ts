@@ -1,11 +1,11 @@
 import {
-  BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, Injectable, Logger, Module, NotFoundException, Param, Patch, Post, Query, UnauthorizedException,
+  BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, Injectable, Logger, Module, NotFoundException, OnModuleDestroy, OnModuleInit, Param, Patch, Post, Query, UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { BillingType, PaymentMethod, PaymentStatus, Prisma, Role } from '@prisma/client';
+import { BillingType, PaymentMethod, PaymentStatus, Prisma, Role, WebhookStatus } from '@prisma/client';
 import { MailService, PrismaService, StorageService } from '../common/infra.module';
-import { paymentReceiptMail } from '../common/mail-templates';
+import { asLang, paymentReceiptMail } from '../common/mail-templates';
 import { CouponsModule, CouponsService } from '../coupons/coupons.module';
 import { AuthUser, CurrentUser, Public, Roles } from '../common/decorators';
 import { FawryProvider, PaymobProvider } from './providers';
@@ -139,7 +139,7 @@ export class PaymentsService {
     try {
       const p = await this.prisma.payment.findUnique({
         where: { id },
-        include: { payer: { select: { name: true, email: true } }, student: { select: { name: true } }, package: { select: { name: true } }, },
+        include: { payer: { select: { name: true, email: true, language: true } }, student: { select: { name: true } }, package: { select: { name: true } }, },
       });
       if (!p) return;
       const enrollment = await this.prisma.enrollment.findUnique({ where: { userId_packageId: { userId: p.studentId, packageId: p.packageId } } });
@@ -147,7 +147,7 @@ export class PaymentsService {
       await this.mail.sendTemplate(
         p.payer.email,
         paymentReceiptMail({
-          name: p.payer.name, packageName: p.package.name, studentName: p.student.name,
+          lang: asLang(p.payer.language), name: p.payer.name, packageName: p.package.name, studentName: p.student.name,
           amountEgp: `${(p.amount / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })} EGP`,
           method: p.method, reference: p.providerRef ?? p.id, paidAt: fmt(p.paidAt ?? new Date()),
           dashboardUrl: `${this.config.get('FRONTEND_URL')}/dashboard`,
@@ -168,6 +168,109 @@ export class PaymentsService {
   }
 }
 
+const MAX_ATTEMPTS = 8;
+const backoffMs = (attempt: number) => Math.min(60 * 60_000, 30_000 * 2 ** (attempt - 1)); // 30 s, 1 min, 2 min ... up to 1 h
+
+/**
+ * Payment webhooks are saved first and answered with 200 at once, so a slow or failing database never makes the provider
+ * give up on us. A worker then applies them (right away, and again from a timer) and retries failures with a growing delay.
+ * Several API servers can run this together: an event is claimed with one atomic update.
+ */
+@Injectable()
+export class WebhookQueue implements OnModuleInit, OnModuleDestroy {
+  private log = new Logger('Webhooks');
+  private timer?: NodeJS.Timeout;
+  constructor(private prisma: PrismaService, private payments: PaymentsService, private config: ConfigService) {}
+
+  onModuleInit() {
+    if (this.config.get('JOBS_ENABLED', 'true') === 'false') return;
+    this.timer = setInterval(() => void this.sweep(), 30_000);
+    this.timer.unref();
+  }
+  onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
+
+  /** Stores the delivery. A repeated delivery of the same event is stored once. */
+  async accept(provider: 'paymob' | 'fawry', dedupeKey: string, payload: Prisma.InputJsonValue) {
+    try {
+      const ev = await this.prisma.webhookEvent.create({ data: { provider, dedupeKey, payload } });
+      setImmediate(() => void this.process(ev.id));
+      return ev.id;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') return null; // already have it
+      throw e;
+    }
+  }
+
+  async process(id: string) {
+    const now = new Date();
+    const claimed = await this.prisma.webhookEvent.updateMany({
+      where: { id, status: WebhookStatus.PENDING, nextAttemptAt: { lte: now } },
+      data: { status: WebhookStatus.PROCESSING, nextAttemptAt: now, attempts: { increment: 1 } },
+    });
+    if (!claimed.count) return; // someone else has it, or it is not due yet
+    const ev = await this.prisma.webhookEvent.findUniqueOrThrow({ where: { id } });
+    try {
+      await this.apply(ev.provider, ev.payload as any);
+      await this.prisma.webhookEvent.update({ where: { id }, data: { status: WebhookStatus.DONE, processedAt: new Date(), lastError: null } });
+    } catch (e) {
+      const msg = (e as Error).message.slice(0, 500);
+      const giveUp = ev.attempts >= MAX_ATTEMPTS;
+      this.log[giveUp ? 'error' : 'warn'](`Webhook ${id} (${ev.provider}) attempt ${ev.attempts} failed: ${msg}${giveUp ? ' - giving up, an admin must retry it' : ''}`);
+      await this.prisma.webhookEvent.update({
+        where: { id },
+        data: giveUp ? { status: WebhookStatus.FAILED, lastError: msg } : { status: WebhookStatus.PENDING, lastError: msg, nextAttemptAt: new Date(Date.now() + backoffMs(ev.attempts)) },
+      });
+    }
+  }
+
+  /** Picks up events that are due again, and ones stuck "processing" because a server died mid-way. */
+  async sweep() {
+    try {
+      await this.prisma.webhookEvent.updateMany({ where: { status: WebhookStatus.PROCESSING, nextAttemptAt: { lt: new Date(Date.now() - 5 * 60_000) } }, data: { status: WebhookStatus.PENDING } });
+      const due = await this.prisma.webhookEvent.findMany({ where: { status: WebhookStatus.PENDING, nextAttemptAt: { lte: new Date() } }, orderBy: { receivedAt: 'asc' }, take: 20, select: { id: true } });
+      for (const { id } of due) await this.process(id);
+      await this.prisma.webhookEvent.deleteMany({ where: { status: WebhookStatus.DONE, processedAt: { lt: new Date(Date.now() - 90 * DAY) } } });
+    } catch (e) {
+      this.log.error(`Webhook sweep failed: ${(e as Error).message}`);
+    }
+  }
+
+  async retry(id: string) {
+    const r = await this.prisma.webhookEvent.updateMany({ where: { id, status: WebhookStatus.FAILED }, data: { status: WebhookStatus.PENDING, nextAttemptAt: new Date(), attempts: 0 } });
+    if (!r.count) throw new NotFoundException('Only failed events can be retried');
+    await this.process(id);
+  }
+
+  private async apply(provider: string, body: any) {
+    if (provider === 'paymob') {
+      const obj = body.obj;
+      const paymentId = obj?.order?.merchant_order_id ?? obj?.special_reference;
+      if (!paymentId) return;
+      if (obj.success && !obj.pending) await this.payments.markPaid(paymentId, { paymobTransactionId: obj.id });
+      else if (!obj.pending) await this.payments.markFailed(paymentId, { paymobTransactionId: obj.id });
+    } else if (provider === 'fawry') {
+      if (body.orderStatus === 'PAID') await this.payments.markPaid(body.merchantRefNumber, { fawryRef: body.fawryRefNumber });
+      else if (['EXPIRED', 'CANCELED', 'FAILED'].includes(body.orderStatus)) await this.payments.markFailed(body.merchantRefNumber, body);
+    }
+  }
+}
+
+/** Admin tools for the webhook queue. Registered before PaymentsController so "webhook-events" is not read as a payment id. */
+@Controller('payments/webhook-events')
+class WebhookAdminController {
+  constructor(private prisma: PrismaService, private queue: WebhookQueue) {}
+
+  @Roles(Role.ADMIN)
+  @Get()
+  list(@Query('status') status?: WebhookStatus) {
+    return this.prisma.webhookEvent.findMany({ where: status ? { status } : { status: { not: 'DONE' } }, orderBy: { receivedAt: 'desc' }, take: 100 });
+  }
+
+  @Roles(Role.ADMIN)
+  @Post(':id/retry') @HttpCode(200)
+  async retry(@Param('id') id: string) { await this.queue.retry(id); return { ok: true }; }
+}
+
 @Controller('payments')
 class PaymentsController {
   constructor(
@@ -176,6 +279,8 @@ class PaymentsController {
     private storage: StorageService,
     private paymob: PaymobProvider,
     private fawry: FawryProvider,
+    private queue: WebhookQueue,
+    private config: ConfigService,
   ) {}
 
   @Roles(Role.STUDENT, Role.PARENT)
@@ -192,6 +297,21 @@ class PaymentsController {
       orderBy: { createdAt: 'desc' },
       include: { package: { select: { name: true } }, student: { select: { name: true } } },
     });
+  }
+
+  /** Which payment methods are switched on (their keys are set). The checkout shows only these. */
+  @Roles(Role.STUDENT, Role.PARENT)
+  @Get('methods')
+  methods() {
+    const has = (...keys: string[]) => keys.every((k) => !!this.config.get<string>(k)?.trim());
+    const paymob = has('PAYMOB_SECRET_KEY', 'PAYMOB_PUBLIC_KEY', 'PAYMOB_HMAC_SECRET');
+    return {
+      CARD: paymob && has('PAYMOB_CARD_INTEGRATION_ID'),
+      WALLET: paymob && has('PAYMOB_WALLET_INTEGRATION_ID'),
+      INSTALLMENTS: paymob && has('PAYMOB_INSTALLMENT_INTEGRATION_IDS'),
+      FAWRY: has('FAWRY_MERCHANT_CODE', 'FAWRY_SECURE_KEY'),
+      INSTAPAY: has('INSTAPAY_ADDRESS'),
+    };
   }
 
   @Roles(Role.STUDENT, Role.PARENT, Role.ADMIN)
@@ -259,10 +379,8 @@ class PaymentsController {
     if (body?.type !== 'TRANSACTION') return { ok: true };
     const obj = body.obj;
     if (!this.paymob.verify(obj, hmac)) throw new UnauthorizedException('Bad signature');
-    const paymentId = obj.order?.merchant_order_id ?? obj.special_reference;
-    if (!paymentId) return { ok: true };
-    if (obj.success && !obj.pending) await this.payments.markPaid(paymentId, { paymobTransactionId: obj.id });
-    else if (!obj.pending) await this.payments.markFailed(paymentId, { paymobTransactionId: obj.id });
+    // Save and answer at once; the queue applies it (and retries if the database hiccups)
+    await this.queue.accept('paymob', `paymob:${obj.id}:${obj.success}:${obj.pending}`, { type: 'TRANSACTION', obj });
     return { ok: true };
   }
 
@@ -270,11 +388,10 @@ class PaymentsController {
   @Post('webhooks/fawry') @HttpCode(200)
   async fawryHook(@Body() body: any) {
     if (!this.fawry.verify(body)) throw new UnauthorizedException('Bad signature');
-    if (body.orderStatus === 'PAID') await this.payments.markPaid(body.merchantRefNumber, { fawryRef: body.fawryRefNumber });
-    else if (['EXPIRED', 'CANCELED', 'FAILED'].includes(body.orderStatus)) await this.payments.markFailed(body.merchantRefNumber, body);
+    await this.queue.accept('fawry', `fawry:${body.fawryRefNumber}:${body.orderStatus}`, body);
     return { ok: true };
   }
 }
 
-@Module({ imports: [CouponsModule], controllers: [PaymentsController], providers: [PaymentsService, PaymobProvider, FawryProvider] })
+@Module({ imports: [CouponsModule], controllers: [WebhookAdminController, PaymentsController], providers: [PaymentsService, PaymobProvider, FawryProvider, WebhookQueue] })
 export class PaymentsModule {}
