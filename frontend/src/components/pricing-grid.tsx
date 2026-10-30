@@ -5,7 +5,7 @@ import { useT } from './i18n-provider';
 import { egp } from '@/lib/format';
 import { TRACK_LABEL, type Billing, type Package, type Track } from '@/lib/types';
 
-const COLORS: Record<Track, string> = { KIDS: '#ae593a', SCHOOL: '#3d7a5a', COLLEGE: '#3b5f9e' };
+const COLORS: Record<Track, string> = { KIDS: '#2b62b3', SCHOOL: '#3d7a5a', COLLEGE: '#6a4c9c' };
 
 export function PricingGrid({ packages, initialTrack }: { packages: Package[]; initialTrack?: Track }) {
   const t = useT();

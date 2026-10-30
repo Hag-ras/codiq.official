@@ -13,9 +13,9 @@ Read this first. It summarises decisions made while designing Codiq, so you don'
 - Market: Egypt, prices in EGP (stored as piasters), English UI, Arabic (Egyptian) marketing copy.
 
 ## Brand (chosen logo: "Cursor")
-- Wordmark: `codiq` in JetBrains Mono Bold, letter-spacing -0.04em, followed by a solid clay block cursor (width 0.42em, height 0.86em). Cursor may blink on screen (~1.1s, steps), solid in print.
-- App icon: ink rounded square, paper "c" + clay cursor.
-- Colors: ink `#1c1d21`, paper `#f5f3ee`, clay `#ae593a` (on dark `#d4896e`), track accents KIDS `#ae593a`, SCHOOL `#3d7a5a`, COLLEGE `#3b5f9e`.
+- Wordmark: `codiq` in JetBrains Mono Bold, letter-spacing -0.04em, followed by a solid blue block cursor (width 0.42em, height 0.86em). Cursor may blink on screen (~1.1s, steps), solid in print.
+- App icon: ink rounded square, paper "c" + blue cursor.
+- Colors: ink `#1c1d21`, paper `#f5f3ee`, blue `#2b62b3` (on dark `#7fa8e3`; the code token is still named `clay`), track accents KIDS `#2b62b3`, SCHOOL `#3d7a5a`, COLLEGE `#6a4c9c` (violet). The brand switched from clay `#ae593a` to blue in Oct 2026.
 - Type: JetBrains Mono (logo, headings), DM Sans (UI body).
 - Avoid neon colors; keep everything simple.
 - Brand assets: `../codiq-brand-kit-cursor/` (SVG/PNG logos, app icons, favicons, social).

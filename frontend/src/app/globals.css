@@ -5,11 +5,11 @@
   --color-paper: #f5f3ee;
   --color-line: #e4e0d8;
   --color-muted: #6b6a66;
-  --color-clay: #ae593a;
-  --color-clay-light: #d4896e;
-  --color-kids: #ae593a;
+  --color-clay: #2b62b3;
+  --color-clay-light: #7fa8e3;
+  --color-kids: #2b62b3;
   --color-school: #3d7a5a;
-  --color-college: #3b5f9e;
+  --color-college: #6a4c9c;
   --color-danger: #b3261e;
   /* Surfaces that stay dark/light in both themes (terminal, banners, footer, video) */
   --color-night: #1c1d21;
@@ -22,9 +22,9 @@
 
 /* Dashboard tone follows the student's track: playful for kids, calm for college */
 :root { --accent: var(--color-ink); --accent-soft: #ece9e2; --radius-card: 12px; }
-[data-track="KIDS"] { --accent: var(--color-kids); --accent-soft: #f6e6de; --radius-card: 20px; }
+[data-track="KIDS"] { --accent: var(--color-kids); --accent-soft: #e1e9f7; --radius-card: 20px; }
 [data-track="SCHOOL"] { --accent: var(--color-school); --accent-soft: #e1eee6; --radius-card: 14px; }
-[data-track="COLLEGE"] { --accent: var(--color-college); --accent-soft: #e2e9f5; --radius-card: 10px; }
+[data-track="COLLEGE"] { --accent: var(--color-college); --accent-soft: #e9e3f2; --radius-card: 10px; }
 
 /* In @layer base so Tailwind utilities (e.g. text-paper on buttons) can override these */
 @layer base {
@@ -47,8 +47,8 @@
   --color-paper: #121317;
   --color-line: #2b2d35;
   --color-muted: #a3a199;
-  --color-clay: #cf6d4c;
-  --color-clay-light: #e39a80;
+  --color-clay: #4f86d6;
+  --color-clay-light: #8db3ea;
   --color-danger: #ff8f86;
   --color-night: #1f2127;
   --surface: #1b1c22;
@@ -56,9 +56,9 @@
   --hover: rgb(255 255 255 / 0.07);
   --accent-soft: #272830;
 }
-[data-theme="dark"] [data-track="KIDS"] { --accent: #e58a6c; --accent-soft: #3a2721; }
+[data-theme="dark"] [data-track="KIDS"] { --accent: #7fa8e3; --accent-soft: #1f2a40; }
 [data-theme="dark"] [data-track="SCHOOL"] { --accent: #72b894; --accent-soft: #1f3228; }
-[data-theme="dark"] [data-track="COLLEGE"] { --accent: #82a7e6; --accent-soft: #212b3f; }
+[data-theme="dark"] [data-track="COLLEGE"] { --accent: #a898d6; --accent-soft: #2b2540; }
 
 /* Hard-coded light colours in the components, remapped for dark. Unlayered, so they win over utilities. */
 .bg-white { background-color: var(--surface); }
@@ -87,7 +87,7 @@
 @keyframes msg-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes drift { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(30px, -24px, 0) scale(1.08); } }
 @keyframes gradient-pan { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
-@keyframes ring { 0% { box-shadow: 0 0 0 0 rgb(174 89 58 / 0.45); } 100% { box-shadow: 0 0 0 16px rgb(174 89 58 / 0); } }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgb(43 98 179 / 0.45); } 100% { box-shadow: 0 0 0 16px rgb(43 98 179 / 0); } }
 @keyframes type-line { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 
 .animate-spin-in { animation: spin-in 0.35s ease-out both; }
@@ -111,7 +111,7 @@
 .lift:hover { transform: translateY(-4px); box-shadow: 0 18px 34px -22px rgb(0 0 0 / 0.35); border-color: var(--color-ink); }
 
 /* Moving gradient on the hero accent word and a soft glow behind it */
-.text-shine { background: linear-gradient(90deg, var(--color-clay), #e0a24a, var(--color-clay)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gradient-pan 5s linear infinite; }
+.text-shine { background: linear-gradient(90deg, var(--color-clay), #5b93e0, var(--color-clay)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gradient-pan 5s linear infinite; }
 .blob { position: absolute; border-radius: 9999px; filter: blur(70px); opacity: 0.35; pointer-events: none; animation: drift 14s ease-in-out infinite; }
 [data-theme="dark"] .blob { opacity: 0.22; }
 .term-line { animation: type-line 0.9s steps(28) both; }

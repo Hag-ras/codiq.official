@@ -10,7 +10,7 @@ export function Logo({ size = 22, dark = false }: { size?: number; dark?: boolea
       <span
         aria-hidden
         className="animate-blink rounded-[1px]"
-        style={{ width: size * 0.42, height: size * 0.86, background: dark ? '#d4896e' : '#ae593a' }}
+        style={{ width: size * 0.42, height: size * 0.86, background: dark ? '#7fa8e3' : '#2b62b3' }}
       />
     </span>
   );

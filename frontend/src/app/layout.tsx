@@ -14,7 +14,7 @@ const arabic = Noto_Sans_Arabic({ subsets: ['arabic'], variable: '--font-noto-ar
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains', weight: ['500', '700'] });
 
 export const metadata: Metadata = {
-  title: 'Codiq — Think it. Code it.',
+  title: 'Codiq: Think it. Code it.',
   description: 'Programming classes for kids, secondary students and college students in Egypt.',
   icons: { icon: '/favicon.svg', apple: '/apple-touch-icon-180.png' },
 };
@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={lang} dir={lang === 'ar' ? 'rtl' : 'ltr'} className={`${sans.variable} ${mono.variable} ${arabic.variable}`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT }} /></head>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <I18nProvider lang={lang}><SiteBackdrop /><ScrollProgress /><Providers>{children}<ChatLauncher role={role} /></Providers></I18nProvider>
       </body>
     </html>

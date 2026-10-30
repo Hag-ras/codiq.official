@@ -9,7 +9,7 @@ function layout(title: string, bodyHtml: string, button?: { label: string; url: 
   return `<!doctype html><html><body style="margin:0;background:#f5f3ee;font-family:Arial,Helvetica,sans-serif;color:#1c1d21">
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;border:1px solid #e4e0d8">
-      <tr><td style="padding:28px 32px 0;font-family:'Courier New',monospace;font-size:26px;font-weight:700;letter-spacing:-1px">codiq<span style="color:#ae593a">&#9608;</span></td></tr>
+      <tr><td style="padding:28px 32px 0;font-family:'Courier New',monospace;font-size:26px;font-weight:700;letter-spacing:-1px">codiq<span style="color:#2b62b3">&#9608;</span></td></tr>
       <tr><td style="padding:20px 32px 32px;font-size:16px;line-height:1.6">
         <h1 style="font-size:22px;margin:0 0 12px">${esc(title)}</h1>
         ${bodyHtml}${btn}

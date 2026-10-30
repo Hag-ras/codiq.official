@@ -11,9 +11,9 @@ import { egp } from '@/lib/format';
 import { TRACK_AUDIENCE, TRACK_LABEL, type Package, type Track } from '@/lib/types';
 
 const TRACKS: { id: Track; color: string; learn: string }[] = [
-  { id: 'KIDS', color: '#ae593a', learn: 'Scratch, Python, games and animations. Short, hands-on classes.' },
+  { id: 'KIDS', color: '#2b62b3', learn: 'Scratch, Python, games and animations. Short, hands-on classes.' },
   { id: 'SCHOOL', color: '#3d7a5a', learn: 'The Ministry programming curriculum, exam practice and past papers.' },
-  { id: 'COLLEGE', color: '#3b5f9e', learn: 'Web development, data structures and algorithms, real projects.' },
+  { id: 'COLLEGE', color: '#6a4c9c', learn: 'Web development, data structures and algorithms, real projects.' },
 ];
 
 const STEPS = [
@@ -40,7 +40,7 @@ export default async function Landing() {
         <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pt-16 pb-20 md:grid-cols-[1.1fr_1fr] md:pt-24">
           <div data-parallax="90" className="pointer-events-none absolute inset-0" aria-hidden>
             <span className="blob -top-10 -start-20 size-72 bg-clay" />
-            <span className="blob end-0 top-40 size-64 bg-[#3b5f9e]" style={{ animationDelay: '-6s' }} />
+            <span className="blob end-0 top-40 size-64 bg-[#6a4c9c]" style={{ animationDelay: '-6s' }} />
           </div>
           <div data-hero className="relative flex flex-col gap-6">
             <span className="font-mono text-[13px] tracking-[0.08em] text-muted">KIDS · SCHOOL · COLLEGE</span>
@@ -60,7 +60,7 @@ export default async function Landing() {
             <div><span className="text-clay-light">$</span> codiq --tracks</div>
             {TRACKS.map((tr, i) => (
               <div key={tr.id} className="term-line grid grid-cols-[90px_1fr] gap-2 text-[#b4b2ac]" style={{ animationDelay: `${0.4 + i * 0.5}s` }}>
-                <span style={{ color: tr.color === '#ae593a' ? '#d4896e' : tr.color === '#3d7a5a' ? '#7fb898' : '#8fa9d6' }}>{tr.id.toLowerCase()}</span>
+                <span style={{ color: tr.color === '#2b62b3' ? '#7fa8e3' : tr.color === '#3d7a5a' ? '#7fb898' : '#a898d6' }}>{tr.id.toLowerCase()}</span>
                 <span>{TRACK_AUDIENCE[tr.id].toLowerCase()}</span>
               </div>
             ))}

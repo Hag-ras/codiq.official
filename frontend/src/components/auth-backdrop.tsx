@@ -6,7 +6,7 @@ const W = 1200;
 const H = 800;
 const LAYERS = [4, 6, 6, 5, 3];
 // Output nodes wear the three track colours (kids, school, college).
-const OUT = ['#ae593a', '#3d7a5a', '#3b5f9e'];
+const OUT = ['#2b62b3', '#3d7a5a', '#6a4c9c'];
 const NS = 'http://www.w3.org/2000/svg';
 const GLYPHS: { t: string; x: string; y: string; s: number; code?: boolean }[] = [
   { t: '{ }', x: '8%', y: '14%', s: 34 }, { t: '</>', x: '84%', y: '12%', s: 30 }, { t: '=>', x: '6%', y: '70%', s: 28 },
@@ -42,7 +42,7 @@ export function AuthBackdrop() {
       const fire = () => {
         const dot = document.createElementNS(NS, 'circle');
         dot.setAttribute('r', '5');
-        dot.setAttribute('fill', '#ae593a');
+        dot.setAttribute('fill', '#2b62b3');
         sig.appendChild(dot);
         const pick = LAYERS.map((n) => Math.floor(Math.random() * n));
         gsap.set(dot, { attr: { cx: nodes[0][pick[0]].x, cy: nodes[0][pick[0]].y } });
