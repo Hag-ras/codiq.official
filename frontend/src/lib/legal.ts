@@ -80,7 +80,7 @@ const EN = (kind: 'terms' | 'privacy'): LegalDoc => kind === 'terms' ? {
     ] },
     { h: '4. Emails', p: ['We send account emails (welcome, password reset, payment receipts) and, unless you turn them off in your profile, class reminders, plan renewal reminders, grade and assignment notices to parents and a weekly progress summary to parents. Turning notifications off does not stop password and payment emails.'] },
     { h: '5. Who we share it with', p: [
-      'Only the services that help us run Codiq, and only what they need: database hosting (Supabase), file storage (Cloudflare R2), live video (LiveKit), email delivery (Resend), payment processing (Paymob, Fawry, InstaPay), and Google for sign-in and for the YouTube player that plays our unlisted lesson videos. YouTube and Google may use their own cookies and process data under their own policies when a video plays.',
+      'Only the services that help us run Codiq, and only what they need: database hosting (a managed PostgreSQL provider), file storage (Cloudflare R2), live video (LiveKit), email delivery (Resend), payment processing (Paymob, Fawry, InstaPay), and Google for sign-in and for the YouTube player that plays our unlisted lesson videos. YouTube and Google may use their own cookies and process data under their own policies when a video plays.',
       'Instructors, assistants and admins at Codiq can see the information they need to teach and support you. We share data with authorities only when the law requires it.',
       'Some of these services keep data on servers outside Egypt. We choose providers that protect data with security measures such as encryption in transit.',
     ] },
@@ -158,7 +158,7 @@ const AR = (kind: 'terms' | 'privacy'): LegalDoc => kind === 'terms' ? {
     ] },
     { h: '٤. الإيميلات', p: ['بنبعت إيميلات الحساب (الترحيب وإعادة تعيين كلمة المرور وإيصالات الدفع)، وكمان — إلا لو قفلتها من ملفك الشخصي — تذكيرات الحصص وتجديد الباقة، وإشعارات التكاليف والدرجات لأولياء الأمور، وتقرير أسبوعي لهم. قفل الإشعارات مابيوقفش إيميلات كلمة المرور والدفع.'] },
     { h: '٥. بنشارك البيانات مع مين', p: [
-      'بس مع الخدمات اللي بتساعدنا نشغّل كوديك، وبس اللي بتحتاجه: استضافة قاعدة البيانات (Supabase)، وتخزين الملفات (Cloudflare R2)، والفيديو اللايف (LiveKit)، وإرسال الإيميلات (Resend)، ومعالجة الدفع (باي موب وفوري وإنستاباي)، وجوجل لتسجيل الدخول ولمشغّل يوتيوب اللي بيعرض فيديوهات الدروس غير المدرجة. يوتيوب وجوجل ممكن يستخدموا كوكيز خاصة بيهم ويعالجوا بيانات وفق سياساتهم لما الفيديو يشتغل.',
+      'بس مع الخدمات اللي بتساعدنا نشغّل كوديك، وبس اللي بتحتاجه: استضافة قاعدة البيانات (مزوّد PostgreSQL مُدار)، وتخزين الملفات (Cloudflare R2)، والفيديو اللايف (LiveKit)، وإرسال الإيميلات (Resend)، ومعالجة الدفع (باي موب وفوري وإنستاباي)، وجوجل لتسجيل الدخول ولمشغّل يوتيوب اللي بيعرض فيديوهات الدروس غير المدرجة. يوتيوب وجوجل ممكن يستخدموا كوكيز خاصة بيهم ويعالجوا بيانات وفق سياساتهم لما الفيديو يشتغل.',
       'المدرّسون والمساعدون والإدارة في كوديك بيشوفوا المعلومات اللي بيحتاجوها للتدريس والدعم بس. ومابنشاركش بيانات مع الجهات الرسمية إلا لو القانون طلب كده.',
       'بعض الخدمات دي بتحفظ البيانات على سيرفرات خارج مصر. وبنختار مزوّدين بيحموا البيانات بإجراءات أمان زي التشفير أثناء النقل.',
     ] },

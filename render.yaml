@@ -5,8 +5,11 @@ services:
     runtime: node
     region: frankfurt
     rootDir: backend
-    plan: free
+    # Not free: a free service sleeps after 15 minutes, which kills the support chat, the scheduled emails and webhook retries
+    plan: starter
     buildCommand: npm ci && npx prisma generate && npm run build
+    # Applies new database migrations before each deploy (safe to run every time: it only applies what is missing)
+    preDeployCommand: npx prisma migrate deploy
     startCommand: node dist/main
     healthCheckPath: /api/packages
     envVars:
@@ -27,7 +30,12 @@ services:
       - { key: PAYMOB_HMAC_SECRET, sync: false }
       - { key: PAYMOB_CARD_INTEGRATION_ID, sync: false }
       - { key: PAYMOB_WALLET_INTEGRATION_ID, sync: false }
+      - { key: PAYMOB_INSTALLMENT_INTEGRATION_IDS, sync: false }
+      - { key: FAWRY_BASE_URL, sync: false }
+      - { key: FAWRY_MERCHANT_CODE, sync: false }
+      - { key: FAWRY_SECURE_KEY, sync: false }
       - { key: INSTAPAY_ADDRESS, sync: false }
+      - { key: JOBS_ENABLED, value: "true" }
       - { key: S3_ENDPOINT, sync: false }
       - { key: S3_REGION, value: auto }
       - { key: S3_BUCKET, value: codiq }

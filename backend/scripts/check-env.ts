@@ -16,7 +16,7 @@ async function database() {
   const prisma = new PrismaClient();
   try {
     const n = await prisma.user.count();
-    ok(`connected to ${host} (${n} users)${host.includes('supabase') ? ' [Supabase]' : ' [local]'}`);
+    ok(`connected to ${host} (${n} users)${/localhost|127\.0\.0\.1/.test(host) ? ' [local]' : ' [hosted]'}`);
     if (host.includes('pooler') && !url.includes('pgbouncer=true')) bad('pooled Supabase URL should end with ?pgbouncer=true');
     if (!env.DIRECT_URL) bad('DIRECT_URL is missing (needed for migrations)');
   } catch (e) {
