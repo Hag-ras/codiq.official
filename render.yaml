@@ -5,11 +5,11 @@ services:
     runtime: node
     region: frankfurt
     rootDir: backend
-    # Not free: a free service sleeps after 15 minutes, which kills the support chat, the scheduled emails and webhook retries
-    plan: starter
-    buildCommand: npm ci && npx prisma generate && npm run build
-    # Applies new database migrations before each deploy (safe to run every time: it only applies what is missing)
-    preDeployCommand: npx prisma migrate deploy
+    # TESTING ONLY: a free service sleeps after 15 minutes, which kills the support chat, the scheduled emails and webhook retries. Switch back to "starter" before launch
+    plan: free
+    # Migrations run in the build step because free instances have no pre-deploy command (safe every time: it only applies what is missing).
+    # On "starter", move `npx prisma migrate deploy` back into preDeployCommand
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: node dist/main
     healthCheckPath: /api/packages
     envVars:
