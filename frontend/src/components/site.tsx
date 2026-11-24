@@ -17,16 +17,18 @@ export async function SiteHeader() {
           <Link href="/pricing" className="hover:text-clay">{t('Packages')}</Link>
           <Link href="/#how" className="hover:text-clay">{t('How it works')}</Link>
         </nav>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <Preferences className="me-0 gap-1.5 sm:me-1 sm:gap-2" />
-          {signedIn ? (
-            <ButtonLink href="/dashboard" className="whitespace-nowrap px-3 sm:px-4">{t('Dashboard')}</ButtonLink>
-          ) : (
-            <>
-              <ButtonLink href="/login" variant="ghost" className="whitespace-nowrap max-md:hidden">{t('Log in')}</ButtonLink>
-              <ButtonLink href="/signup" className="whitespace-nowrap px-3 sm:px-4">{t('Get started')}</ButtonLink>
-            </>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-md:hidden">
+            <Preferences className="me-1" />
+            {signedIn ? (
+              <ButtonLink href="/dashboard">{t('Dashboard')}</ButtonLink>
+            ) : (
+              <>
+                <ButtonLink href="/login" variant="ghost">{t('Log in')}</ButtonLink>
+                <ButtonLink href="/signup">{t('Get started')}</ButtonLink>
+              </>
+            )}
+          </div>
           <MobileNav
             label="Menu"
             items={[
@@ -35,7 +37,10 @@ export async function SiteHeader() {
               { href: '/#how', label: t('How it works') },
               ...(signedIn ? [] : [{ href: '/login', label: t('Log in') }]),
             ]}
-          />
+          >
+            <Preferences className="justify-center" />
+            <ButtonLink href={signedIn ? '/dashboard' : '/signup'} className="w-full">{signedIn ? t('Dashboard') : t('Get started')}</ButtonLink>
+          </MobileNav>
         </div>
       </div>
     </header>

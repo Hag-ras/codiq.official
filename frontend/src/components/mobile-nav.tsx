@@ -1,11 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 
 export type NavItem = { href: string; label: string };
 
 /** Hamburger menu for small screens (hidden from md up, where the header shows the links inline). */
-export function MobileNav({ items, label }: { items: NavItem[]; label: string }) {
+export function MobileNav({ items, label, children }: { items: NavItem[]; label: string; children?: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative md:hidden">
@@ -23,12 +23,13 @@ export function MobileNav({ items, label }: { items: NavItem[]; label: string })
       {open && (
         <>
           <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-30 cursor-default" onClick={() => setOpen(false)} />
-          <nav className="absolute end-0 top-12 z-40 flex w-56 flex-col rounded-2xl border border-line bg-white p-2 text-[16px] shadow-xl">
+          <nav className="absolute end-0 top-12 z-40 flex w-64 flex-col rounded-2xl border border-line bg-white p-2 text-[16px] shadow-xl">
             {items.map(i => (
               <Link key={i.href} href={i.href} onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 font-medium hover:bg-black/5">
                 {i.label}
               </Link>
             ))}
+            {children && <div className="mt-1 flex flex-col gap-3 border-t border-line px-2 pt-3 pb-1" onClick={e => { if ((e.target as HTMLElement).closest('a')) setOpen(false); }}>{children}</div>}
           </nav>
         </>
       )}
