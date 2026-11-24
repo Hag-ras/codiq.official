@@ -28,7 +28,8 @@
 
 /* In @layer base so Tailwind utilities (e.g. text-paper on buttons) can override these */
 @layer base {
-  body { background: var(--color-paper); color: var(--color-ink); }
+  html { overflow-x: clip; }
+  body { background: var(--color-paper); color: var(--color-ink); overflow-x: clip; }
   a { color: inherit; }
   h1, h2, h3 { text-wrap: balance; }
   p { text-wrap: pretty; }

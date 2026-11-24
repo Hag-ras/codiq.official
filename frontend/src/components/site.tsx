@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { ButtonLink, Logo } from './ui';
 import { Preferences } from './preferences';
+import { MobileNav } from './mobile-nav';
 import { getT } from '@/lib/i18n-server';
 
 export async function SiteHeader() {
@@ -9,23 +10,32 @@ export async function SiteHeader() {
   const signedIn = (await cookies()).has('refresh_token');
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
-        <Link href="/" aria-label="Codiq home"><Logo /></Link>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-5 sm:py-3.5">
+        <Link href="/" aria-label="Codiq home" className="shrink-0"><Logo /></Link>
         <nav className="hidden items-center gap-7 text-[15px] md:flex">
           <Link href="/#tracks" className="hover:text-clay">{t('Tracks')}</Link>
           <Link href="/pricing" className="hover:text-clay">{t('Packages')}</Link>
           <Link href="/#how" className="hover:text-clay">{t('How it works')}</Link>
         </nav>
-        <div className="flex items-center gap-2">
-          <Preferences className="me-1" />
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Preferences className="me-0 gap-1.5 sm:me-1 sm:gap-2" />
           {signedIn ? (
-            <ButtonLink href="/dashboard">{t('Dashboard')}</ButtonLink>
+            <ButtonLink href="/dashboard" className="whitespace-nowrap px-3 sm:px-4">{t('Dashboard')}</ButtonLink>
           ) : (
             <>
-              <ButtonLink href="/login" variant="ghost">{t('Log in')}</ButtonLink>
-              <ButtonLink href="/signup">{t('Get started')}</ButtonLink>
+              <ButtonLink href="/login" variant="ghost" className="whitespace-nowrap max-md:hidden">{t('Log in')}</ButtonLink>
+              <ButtonLink href="/signup" className="whitespace-nowrap px-3 sm:px-4">{t('Get started')}</ButtonLink>
             </>
           )}
+          <MobileNav
+            label="Menu"
+            items={[
+              { href: '/#tracks', label: t('Tracks') },
+              { href: '/pricing', label: t('Packages') },
+              { href: '/#how', label: t('How it works') },
+              ...(signedIn ? [] : [{ href: '/login', label: t('Log in') }]),
+            ]}
+          />
         </div>
       </div>
     </header>
